@@ -3,14 +3,11 @@ from collections import defaultdict
 import json
 import os
 
-def return_0():
-    return 0
-
 class Game:
     def __init__(self):
         self.state : dict = {'Cash' : 0, 'KeyItems' : []}
         self.inventory : dict = {}
-        self.has_visited : dict[int, int] = defaultdict(return_0)
+        self.has_visited : dict[int, int] = defaultdict(lambda : 0)
         self.has_visited[3]
         self.room_state : dict[int, dict] = {}
     
@@ -462,13 +459,21 @@ game = Game()
 game.state['Cash'] = 1
 room_number = 1
 current_save_file : str|None = None
+if not os.path.isdir('saves'):
+    try:
+        os.makedirs('saves')
+    except FileExistsError:
+        os.remove('saves')
+        os.makedirs('saves')
+
 decision = input('Enter "new save" to make a new save. Enter anything else to continue a save.\n').lower()
 if decision != "new save":
-    saves : list[str]
+    saves : list[str] = []
     for path, dirs, files in os.walk('saves'):
         saves = files
         break
     saves = [os.path.splitext(sv)[0] for sv in saves]
+    if '.gitkeep' in saves: saves.remove('.gitkeep')
     if saves:
         print("Here are the registered saves:")
         for index, save in enumerate(saves):
@@ -479,13 +484,15 @@ if decision != "new save":
                 break
             try:
                 save_index = int(save_choice) - 1
-                if save_index <= 0:
+                if save_index < 0:
                     raise ValueError
                 save_choice = saves[save_index]
-            except ValueError:
+            except ValueError as e:
                 print("The save does not exist!")
-            except IndexError:
+                print(f'({e})')
+            except IndexError as e:
                 print("The save does not exist!")
+                print(f'({e}, index = {save_index})')
             else:
                 break
         if save_choice != 'new save':
@@ -497,6 +504,8 @@ if decision != "new save":
                 stall()
             else:
                 print(f'Save {save_choice} could not be loaded...')
+    else:
+        print("There are no registered save files!")
 
 if current_save_file is None:
     while True:
@@ -504,11 +513,12 @@ if current_save_file is None:
         if save_name == 'new save': print("Invalid!"); continue
         try:
             with open(f'saves/{save_name}.json', 'x') as f:
-                pass
+                json.dump({}, f)
         except FileExistsError:
             print("This save already exists!")
         else:
             break
+    current_save_file = save_name
     print("New save was created; Starting game!")
     stall()
 current_save_file : str
