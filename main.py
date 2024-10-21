@@ -10,7 +10,7 @@ class Game:
         self.has_visited : dict[int, int] = defaultdict(lambda : 0)
         self.has_visited[3]
         self.room_state : dict[int, dict] = {}
-    
+
     def save(self, file_path = 'default_save.json'):
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
@@ -28,9 +28,9 @@ class Game:
         }
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
-        
+
         return True
-    
+
     def load(self, file_path = 'default_save.json'):
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
@@ -38,10 +38,10 @@ class Game:
         except FileNotFoundError:
             print(f'{file_path} not found')
             return False
-        
+
         if not data.get('is_filled', False):
             return True
-        
+
         global room_number
         room_number = data['current_room']
         self.room_state = data['room_state']
@@ -55,7 +55,7 @@ class Game:
     def quit(self):
         print('Goodbye!')
         close_everything()
-    
+
     def print_inventory(self):
         if len(self.inventory) <= 0:
             print("Inventory is empty.")
@@ -72,10 +72,10 @@ class Room:
         self.entry_func : function = Room.entry_funcs.get(room_number, None) or Room.enter_default
         self.management_func : function = Room.room_management_funcs.get(room_number, None) or Room.default_manage
         self.room_number = room_number
-    
+
     def manage(self):
         return self.management_func(self)
-    
+
     def enter(self):
         self.entry_func(self)
 
@@ -87,7 +87,7 @@ class Room:
             stall()
             print('')
             return options
-        option_dict : dict[int, str] = {} 
+        option_dict : dict[int, str] = {}
         for i, option in enumerate(options):
             print(f'{i+1}-{option}')
             option_dict[i + 1] = option
@@ -95,29 +95,30 @@ class Room:
         print('')
         result = options[option_dict[choice]]
         return result
-    
+
     def enter_default(self):
         if game.has_visited[self.room_number] <= 1:
             txt_to_display = room_text[self.room_number]
         else:
             second_arrival_text = room_text_second_arrival.get(self.room_number, False)
             txt_to_display = second_arrival_text if second_arrival_text else room_text[self.room_number]
-                
-        
+
+
         if type(txt_to_display) == str:
             print(txt_to_display)
         else:
             txt_to_display : list[str]
             for part in txt_to_display:
                 print(part, end = '')
-                stall()
-    
+                if part == txt_to_display[-1]: break
+                stall("")
+
     def enter_room_1(self):
         if game.has_visited[1] <= 1:
             self.enter_default()
         else:
             print('You are back at the crossroads. What now?')
-    
+
     def enter_room_2(self):
         if game.has_visited[2] <= 1:
             game.room_state[2] = {'items_left' : ['bat', 'flashlight', 'radio']}
@@ -128,9 +129,9 @@ class Room:
         elif game.state['Cash'] > 0:
             self.enter_default()
         else:
-            print('''You encountered a mysterious shop with no one there. They have a few items on sale. 
+            print('''You encountered a mysterious shop with no one there. They have a few items on sale.
 Unfortunately, you dont't have any money left. What do you do?''')
-            
+
     def manage_room_2(self):
 
         item_count = len(game.room_state[2]['items_left'])
@@ -149,7 +150,7 @@ Unfortunately, you dont't have any money left. What do you do?''')
 
         if option_chosen == 'save':
             return 1
-        
+
         item_conversion_dict = {'bat' : 'A wooden bat', 'flashlight' : 'A flaslight', 'radio' : 'A radio'}
 
         prompt_text = 'What do you buy?' if option_chosen == 'buy' else 'What do you steal?'
@@ -172,68 +173,68 @@ Unfortunately, you dont't have any money left. What do you do?''')
             print('You snuck up to the stand, made sure no one was looking... And grabbed the item with seemingly no one noticing you.')
             print("Let's hope this dosen't backfire...")
         stall()
-        return 1    
-    
+        return 1
+
     def enter_room_13(self):
         if 'Floor1Key1' not in game.state['KeyItems']:
             game.state['KeyItems'].append('Floor1Key1')
         self.enter_default()
-    
-    
+
+
     def enter_room_14(self):
         if 'Floor1Key1' in game.state['KeyItems']:
             if game.has_visited[16] == 0:
                 self.enter_default()
-    
-        elif 'BasementKey1' in game.state['KeyItems']: 
-            print('You try the key you grabbed on the first floor. Unfortunately, it is not the right key.')
+
+        elif 'BasementKey1' in game.state['KeyItems']:
+            print("You try the key you grabbed on the first floor. Unfortunately, it doesn't seem to be the right one.")
         else:
             print('Its locked. You need a key to get in there.')
-    
+
     def manage_room_14(self):
         if game.has_visited[16] == 0:
             stall()
-        if 'Floor1Key1' in game.state['KeyItems']: 
+        if 'Floor1Key1' in game.state['KeyItems']:
             return 16
         else:
             return 12
-    
-    
+
+
     def enter_room_15(self):
-        if 'BasementKey1' in game.state['KeyItems']: 
+        if 'BasementKey1' in game.state['KeyItems']:
             self.enter_default()
-        elif 'Floor1Key1' in game.state['KeyItems']: 
-            print('You try the key you grabbed on the ground floor. Unfortunately, it is not the right key.')
+        elif 'Floor1Key1' in game.state['KeyItems']:
+            print("You try the key you grabbed on the ground floor. Unfortunately, it doesn't seem to be the right one.")
         else:
             print('Its locked. You need a key to get in there.')
-    
+
     def manage_room_15(self):
         stall()
-        if 'BasementKey1' in game.state['KeyItems']: 
+        if 'BasementKey1' in game.state['KeyItems']:
             return 17
         else:
             return 12
-    
+
     def enter_room_16(self):
         if 'BasementKey1' not in game.state['KeyItems']:
             game.state['KeyItems'].append('BasementKey1')
         self.enter_default()
-    
+
     def enter_room_18(self):
         if game.has_visited[18] > 1:
             print(room_text_second_arrival[18])
             return
-        
+
         if 'radio' in game.inventory:
             print('''You tried using the radio you got earlier to get help.\nNo one picked up...''')
         else:
             print(room_text[18])
-    
+
     def enter_room_19(self):
         if game.has_visited[19] > 1:
             print(room_text_second_arrival[19])
             return
-        
+
         did_fight_door = game.has_visited[9]
         if 'bat' in game.inventory:
             if did_fight_door:
@@ -247,12 +248,6 @@ The score is 2-0 now.''')
                 print('''Your past experiences with doors tells you this isn't going to work.''')
             else:
                 print(room_text[19])
-    
-    def manage_room_21(self):
-        print('\n')
-        stall()
-        return 22
-        
 
 Room.room_management_funcs = {2 : Room.manage_room_2, 14 : Room.manage_room_14, 15 : Room.manage_room_15}
 Room.entry_funcs = {2 : Room.enter_room_2, 13 : Room.enter_room_13, 14 : Room.enter_room_14, 15: Room.enter_room_15,
@@ -260,8 +255,9 @@ Room.entry_funcs = {2 : Room.enter_room_2, 13 : Room.enter_room_13, 14 : Room.en
 
 
 room_text = {
+    0 : '''---------ACT 0 - Prologue---------''',
     1 : '''You encountered a crossing. What do you do?''',
-    2 : '''You encountered a mysterious shop. They have a few items on sale. 
+    2 : '''You encountered a mysterious shop. They have a few items on sale.
 You don't have much money, so you can only buy one of them.
 What do you do?''',
     3 : '''There's an abandoned mansion up ahead. Should you investigate?''',
@@ -270,14 +266,14 @@ What do you do?''',
     6 : '''Despite your initial hesitations, you decided to investigate. Will you regret this choice? Only time will tell...''',
     7 : '''You decided to investigate. Will you regret this choice? Only time will tell...''',
     8 : '''You arrived at the mansion. You walk up to the front door and try to open it. However, it's locked. What do you do?''',
-    9 : '''You tried to force the door open. Unfortunately, for you, the door won't budge. 
+    9 : '''You tried to force the door open. Unfortunately, for you, the door won't budge.
 Not one to give up so quickly, you start fighting with the door.
 ...
 The door won.''',
-    10: '''You look around for a window to break and find one. 
+    10: '''You look around for a window to break and find one.
 Unfortunatively for you, it's way too small for you to fit in.
 Besides, you don't exactly want to draw attention to what you are doing.''',
-    11: '''You looked around the house for a way in. 
+    11: '''You looked around the house for a way in.
 While the front door was well maintained, the backdoor had already fallen off on its own.
 You made your way to the house's living room.''',
     12: 'The mansion is huge, and there are quite a few things worth taking a look at. Where do you go?',
@@ -287,18 +283,21 @@ You made your way to the house's living room.''',
 But you choose to push on anyways. You didn't come this far just to turn around, right?''',
     16: '''You searched around and found another key.
 You feel like you might know what to do with it.''',
-    17: '''As you take your first steps into the basement, you already start regretting your decision.
-But before you can consider getting out...
-*BLAM!*
-The door closes in on you. Even worse, it's also locked on the inside...
-...
-Looks like you only have one way forwards. Unless...''',
+    17: [
+'''As you take your first steps into the basement, you already start regretting your decision.
+But before you can even consider getting out...\n''',
+'''*BLAM!*\n''',
+'''The door closes in on you. Even worse, it's also locked on the inside...\n''',
+'''...\n''',
+'''Looks like you only have one way forwards. Unless...\n\n'''
+],
     18: '''You try to call for help with yout voice. Unfortunately, no one is around to hear you.
 Looks like you are on your own...''',
     19: '''You try to force the door open. Unfortunatively, it's stronger than you expected and dosent even budge.''',
     20: '''After a moment of thought, you come to the conclusion that the only way you can hope to get out is by going further in.
 While this seems like a very bad idea... It looks like the only way out.''',
-    21: '''---------ACT 1 - Into the dark---------'''
+    21: '''---------ACT 1 - Into the dark---------''',
+    22: '''You take a few more steps down the stairs leading to the basement door.'''
 }
 room_text_second_arrival = {
     1 : '''You are back at the crossing. What now?''',
@@ -308,11 +307,13 @@ room_text_second_arrival = {
     12: '''What do you investigate?''',
     13: '''You couldn't find anything interesting.''',
     16: '''You couldn't find anything interesting.''',
+    17 : '''What now?''',
     18: '''This isn't going to work...''',
     19: '''That's not going to work.''',
 
 }
 room_options = {
+    0 : 1,
     1 : {'Go left' : 2, 'Go right' : 3},
     2 : {'Go back' : 1},
     3 : {'Investigate' : 7,  '''Don't investigate''' : 4},
@@ -328,14 +329,15 @@ room_options = {
     13: 12,
     14: 16,
     15: 17,
-    16: 12, 
+    16: 12,
     17: {'Call for help' : 18, 'Investigate the basement' : 20, 'Break the door open' : 19},
     18: 17,
     19: 17,
     20 : 21,
-    21 : 'END'
+    21 : 22,
+    22 : 'END'
 
-    
+
 
 }
 
@@ -347,10 +349,10 @@ def get_int_choice(option_count : int) -> int:
     while True:
         result = input('Selection : ')
         if result in valid:
-            return int(result)       
+            return int(result)
         elif result == "cmd":
             enter_command()
-            
+
         elif len(result) == 0:
             print(f'Invalid. Number must range from 1 to {option_count}. To see run a command, type "cmd" or prefix it with "/".')
         elif result[0] == '/':
@@ -378,7 +380,7 @@ def parse_command(message : str):
     else:
         print('Something went wrong. Please try again.')
 
-command_list = ['stop', 'exit', 'quit', 'exit', 'help']
+command_list = ['stop', 'exit', 'quit', 'exit', 'help', 'check']
 
 def is_valid_command(message : str):
     message = message.lower()
@@ -390,7 +392,7 @@ def is_valid_command(message : str):
     match command:
         case 'stop'|'end'|'quit'|'exit':
             return True
-        
+
         case 'check':
             if arg_count == 0:
                 return default_error
@@ -408,7 +410,7 @@ def is_valid_command(message : str):
             if command_to_help not in command_list:
                 return f'{command_to_help} is not a valid command. To see a list of all commands, use "help".'
             return True
-        
+
         case _:
             return False
 
@@ -441,6 +443,7 @@ def process_command(message : str):
         case 'help':
             if arg_count == 0:
                 print('quit, stop, end, exit - Close the game')
+                print('check - Check something')
                 print('For more detailed help about a command, use "help <command>"')
                 return
             command_to_help = args[0]
@@ -449,6 +452,8 @@ def process_command(message : str):
                     print('For more detailed help about a command, use "help <command>"')
                 case 'stop'|'end'|'quit'|'exit':
                     print('Use to quit the game.')
+                case 'check':
+                    print('Use check <something> to check something. You can try to check your inventory.')
         case _:
             print(default_error)
 
@@ -457,7 +462,7 @@ def stall(stall_text = '(Enter to continue.) -->'):
 
 game = Game()
 game.state['Cash'] = 1
-room_number = 1
+room_number = 0
 current_save_file : str|None = None
 if not os.path.isdir('saves'):
     try:
@@ -504,8 +509,10 @@ if decision != "new save":
                 stall()
             else:
                 print(f'Save {save_choice} could not be loaded...')
+                print('Making a new save file...')
     else:
         print("There are no registered save files!")
+        print('Making a new save file...')
 
 if current_save_file is None:
     while True:
@@ -527,11 +534,11 @@ while True:
     game.has_visited[room_number] += 1
     room.enter()
     result = room.manage()
-    
+
     if type(result) == int:
         room_number = result
     elif result == 'END':
         break
-        
-stall()    
+
+stall()
 print('DEMO END')
