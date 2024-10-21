@@ -1,8 +1,14 @@
+from time import sleep
 from sys import exit as close_everything
 from collections import defaultdict
 import json
 import os
-
+item_conversion_dict = {
+'bat' : 'A wooden bat',
+'flashlight' : 'A flaslight',
+'radio' : 'A radio',
+'empty_flashlight' : 'A flashlight with no batteries'
+}
 class Game:
     def __init__(self):
         self.state : dict = {'Cash' : 0, 'KeyItems' : []}
@@ -62,8 +68,9 @@ class Game:
             return
         for item in self.inventory:
             item_count = self.inventory[item]
+            item_name = item_conversion_dict[item]
             if item_count <= 0: continue
-            print(f'{item} ({item_count})')
+            print(f'{item_name} ({item_count})' if item_count >= 1 else f'{item_name}')
 
 class Room:
     room_management_funcs = {}
@@ -107,10 +114,11 @@ class Room:
         if type(txt_to_display) == str:
             print(txt_to_display)
         else:
+            print('(Enter to continue.) -->')
             txt_to_display : list[str]
             for part in txt_to_display:
                 print(part, end = '')
-                if part == txt_to_display[-1]: break
+                if part == txt_to_display[-1]: sleep(1.2); break
                 stall("")
 
     def enter_room_1(self):
@@ -297,7 +305,13 @@ Looks like you are on your own...''',
     20: '''After a moment of thought, you come to the conclusion that the only way you can hope to get out is by going further in.
 While this seems like a very bad idea... It looks like the only way out.''',
     21: '''---------ACT 1 - Into the dark---------''',
-    22: '''You take a few more steps down the stairs leading to the basement door.'''
+    22: [
+'''You take a few more steps down the stairs leading to the basement door.\n''',
+'''The deeper you go, the darker it gets. Eventually, you can barely see anything.\n''',
+'''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.\n\n'''
+],
+    23: 'You track back to find a light source... (TBD)',
+    24: 'You fall and die from fall damage... (TBD)'
 }
 room_text_second_arrival = {
     1 : '''You are back at the crossing. What now?''',
@@ -335,8 +349,9 @@ room_options = {
     19: 17,
     20 : 21,
     21 : 22,
-    22 : 'END'
-
+    22 : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24},
+    23 : 'END',
+    24 : 'ENDING BADA1'
 
 
 }
@@ -537,8 +552,33 @@ while True:
 
     if type(result) == int:
         room_number = result
-    elif result == 'END':
+    elif type(result) == str:
         break
 
-stall()
-print('DEMO END')
+if type(result) != str:
+    print('DEMO END')
+    stall()
+    close_everything()
+
+words = result.split()
+if words[0] == 'END':
+    print('DEMO END')
+    stall()
+    close_everything()
+
+ending_text_dict : dict[str, str] = {
+    'BADA1' : 'You fell before you even got to the villan. Impressive.'
+}
+ending_name_dict : dict[str, str] = {
+    'BADA1' : 'Bad Ending: Fallen'
+}
+if words[0] == 'ENDING':
+    ending = words[1]
+    stall()
+    ending_text = ending_text_dict[ending]
+    ending_name = ending_name_dict[ending]
+    print(ending_text)
+    print(ending_name)
+    print('DEMO END')
+    stall()
+    close_everything()
