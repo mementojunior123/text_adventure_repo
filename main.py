@@ -9,6 +9,17 @@ item_conversion_dict = {
 'radio' : 'A radio',
 'empty_flashlight' : 'A flashlight with no batteries'
 }
+def clear_console(method : int = 1):
+    if method == 1:
+        print("\033c", end="")
+    elif method == 2:
+        x = 3
+        print(f"\033[H\033[{x}J", end="")
+    elif method == 3:
+        print("\n" * 50)
+    else:
+        os.system('cls' if os.name == 'nt' else 'clear')
+
 class Game:
     def __init__(self):
         self.state : dict = {'Cash' : 0, 'KeyItems' : []}
@@ -118,7 +129,7 @@ class Room:
             txt_to_display : list[str]
             for part in txt_to_display:
                 print(part, end = '')
-                if part == txt_to_display[-1]: sleep(1.2); break
+                if part == txt_to_display[-1]: stall(); break
                 stall("")
 
     def enter_room_1(self):
@@ -543,7 +554,7 @@ if current_save_file is None:
     current_save_file = save_name
     print("New save was created; Starting game!")
     stall()
-current_save_file : str
+clear_console()
 while True:
     room = Room(room_number)
     game.has_visited[room_number] += 1
