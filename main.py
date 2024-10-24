@@ -3,7 +3,16 @@ from sys import exit as close_everything
 from collections import defaultdict
 import json
 import os
-item_conversion_dict = {
+from typing import Callable
+
+ITEM_IDS : list[str] = ['bat', 'flashlight', 'radio', 'empty_flashlight']
+item_name_dict : dict[str, str] = {
+'bat' : 'Wooden Bat',
+'flashlight' : "Flashlight",
+'radio' : 'Radio',
+'empty_flaslight' : 'Expired Flashlight'
+}
+item_description_dict = {
 'bat' : 'A wooden bat',
 'flashlight' : 'A flaslight',
 'radio' : 'A radio',
@@ -79,17 +88,30 @@ class Game:
             return
         for item in self.inventory:
             item_count = self.inventory[item]
-            item_name = item_conversion_dict[item]
+            item_name = item_description_dict[item]
             if item_count <= 0: continue
             print(f'{item_name} ({item_count})' if item_count >= 1 else f'{item_name}')
 
 class Room:
-    room_management_funcs = {}
-    entry_funcs = {}
-    def __init__(self, room_number):
-        self.entry_func : function = Room.entry_funcs.get(room_number, None) or Room.enter_default
-        self.management_func : function = Room.room_management_funcs.get(room_number, None) or Room.default_manage
-        self.room_number = room_number
+    def __init__(self, room_number : int):
+        self.room_number : int = room_number
+        self.entry_func : Callable[[], None] = self.get_entry_func()
+        self.management_func : Callable[[], None] = self.get_management_func()
+        
+    
+    def get_entry_func(self) -> Callable[[], None]:
+        entry_func : Callable[[], None] = None
+        entry_func = getattr(Room, f'enter_room_{self.room_number}', None)
+        if entry_func is None:
+            entry_func = Room.enter_default
+        return entry_func
+    
+    def get_management_func(self) -> Callable[[], None]:
+        management_func : Callable[[], None] = None
+        management_func = getattr(Room, f'manage_room_{self.room_number}', None)
+        if management_func is None:
+            management_func = Room.default_manage
+        return management_func
 
     def manage(self):
         return self.management_func(self)
@@ -170,14 +192,14 @@ Unfortunately, you dont't have any money left. What do you do?''')
         if option_chosen == 'save':
             return 1
 
-        item_conversion_dict = {'bat' : 'A wooden bat', 'flashlight' : 'A flaslight', 'radio' : 'A radio'}
+        item_description_dict = {'bat' : 'A wooden bat', 'flashlight' : 'A flaslight', 'radio' : 'A radio'}
 
         prompt_text = 'What do you buy?' if option_chosen == 'buy' else 'What do you steal?'
 
         print(prompt_text)
         option_dict = {}
         for i, item in enumerate(game.room_state[2]['items_left']):
-            print(f'{i + 1}-{item_conversion_dict[item]}')
+            print(f'{i + 1}-{item_description_dict[item]}')
             option_dict[i + 1] = item
         choice = get_int_choice(item_count)
         item_to_get = option_dict[choice]
@@ -267,10 +289,19 @@ The score is 2-0 now.''')
                 print('''Your past experiences with doors tells you this isn't going to work.''')
             else:
                 print(room_text[19])
-
-Room.room_management_funcs = {2 : Room.manage_room_2, 14 : Room.manage_room_14, 15 : Room.manage_room_15}
-Room.entry_funcs = {2 : Room.enter_room_2, 13 : Room.enter_room_13, 14 : Room.enter_room_14, 15: Room.enter_room_15,
-16 : Room.enter_room_16}
+    
+    def manage_room_22():
+        options : dict[str, int] = {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24}
+        if 'flashlight' in game.inventory:
+            options['Use your flashlight to light up the path'] = 25
+        option_dict : dict[int, str] = {}
+        for i, option in enumerate(options):
+            print(f'{i+1}-{option}')
+            option_dict[i + 1] = option
+        choice = get_int_choice(len(options))
+        print('')
+        result = options[option_dict[choice]]
+        return result
 
 
 room_text = {
@@ -322,7 +353,8 @@ While this seems like a very bad idea... It looks like the only way out.''',
 '''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.\n\n'''
 ],
     23: 'You track back to find a light source... (TBD)',
-    24: 'You fall and die from fall damage... (TBD)'
+    24: 'You fall and die from fall damage... (TBD)',
+    25: 'You use the flashlight you grabbed earlier to lighten up the path.'
 }
 room_text_second_arrival = {
     1 : '''You are back at the crossing. What now?''',
@@ -360,9 +392,10 @@ room_options = {
     19: 17,
     20 : 21,
     21 : 22,
-    22 : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24},
+    22 : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24, 'Use your flashlight to light up the path' : 25},
     23 : 'END',
-    24 : 'ENDING BADA1'
+    24 : 'ENDING BADA1',
+    25 : 'END',
 
 
 }
