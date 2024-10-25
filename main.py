@@ -3,7 +3,7 @@ from sys import exit as close_everything
 from collections import defaultdict
 import json
 import os
-from typing import Callable
+from typing import Callable, Any, TypedDict, Union
 
 ITEM_IDS : list[str] = ['bat', 'flashlight', 'radio', 'empty_flashlight']
 item_name_dict : dict[str, str] = {
@@ -29,35 +29,62 @@ def clear_console(method : int = 1):
     else:
         os.system('cls' if os.name == 'nt' else 'clear')
 
+AnyJson = Union[str, int, float, bool, None, dict, list]
+
+class GameState(TypedDict):
+    '''game_state : dict[str, AnyJson]
+    room_state : dict[int|str, dict[str, AnyJson]]
+    game_inventory : dict[str, int]
+    visited_rooms : dict[int|str, int]
+    current_room : int'''
+    game_state : dict[str, AnyJson]
+    room_state : dict[int|str, dict[str, AnyJson]]
+    game_inventory : dict[str, int]
+    visited_rooms : dict[int|str, int]
+    current_room : int
+
+class SaveFile(TypedDict):
+    '''current_state : GameState
+    is_filled : int
+    perma_state : dict[str, AnyJson]
+    checkpoints : dict[str, GameState]'''
+    current_state : GameState
+    is_filled : int
+    perma_state : dict[str, AnyJson]
+    checkpoints : dict[str, GameState]
+
 class Game:
     def __init__(self):
-        self.state : dict = {'Cash' : 0, 'KeyItems' : []}
-        self.inventory : dict = {}
+        self.state : dict[str, AnyJson] = {'Cash' : 0, 'KeyItems' : []}
+        self.inventory : dict[str, int] = {}
         self.has_visited : dict[int, int] = defaultdict(lambda : 0)
-        self.has_visited[3]
         self.room_state : dict[int, dict] = {}
+        self.perma_state : dict[str, AnyJson] = {}
+        self.checkpoints : dict[str, GameState] = {}
+        self.room_number : int = 0
+    
+    def reset(self):
+        self.state = {'Cash' : 0, 'KeyItems' : []}
+        self.inventory = {}
+        self.has_visited = defaultdict(lambda : 0)
+        self.room_state = {}
+        self.perma_state = {}
+        self.checkpoints = {}
+        self.room_number = 0
 
-    def save(self, file_path = 'default_save.json'):
+    def save(self, file_path = 'saves/default_save.json'):
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
-                data : dict = json.load(file)
+                pass
         except FileNotFoundError:
             return False
-        has_visited = {str(key) : self.has_visited[key] for key in self.has_visited}
-        data = {
-            'game_state' : self.state,
-            'room_state' : self.room_state,
-            'game_inventory' : self.inventory,
-            'visited_rooms' : has_visited,
-            'current_room' : room_number,
-            'is_filled' : True
-        }
+        
+        data : SaveFile = self._get_data()
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
-
         return True
-
-    def load(self, file_path = 'default_save.json'):
+    
+    def load(self, file_path = 'saves/default_save.json'):
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 data : dict = json.load(file)
@@ -65,17 +92,70 @@ class Game:
             print(f'{file_path} not found')
             return False
 
-        if not data.get('is_filled', False):
+        is_filled : bool|int|None = data.get('is_filled', None)
+        if not data:
+            print("Save is empty!")
+            return True
+        elif not is_filled:
+            if file_path[:6] == 'saves/':
+                file_path = file_path[6:]
+            print(f"{file_path} is not a valid save file - Wiping data!")
+            return True
+        elif is_filled < 2:
+            print("Save is outdated and data cannot be recovered - Wiping data!")
             return True
 
-        global room_number
-        room_number = data['current_room']
-        self.room_state = data['room_state']
-        self.inventory = data['game_inventory']
+
+        return self._load_data(data)
+    
+    def _get_data(self) -> SaveFile:
+        current_state = self._get_save_state()
+        data : SaveFile = {
+            'current_state' : current_state,
+            'is_filled' : 2,
+            'perma_state' : self.perma_state,
+            'checkpoints' : self.checkpoints
+        }
+        return data
+
+    def _get_save_state(self) -> GameState:
+        has_visited = {str(key) : self.has_visited[key] for key in self.has_visited}
+        current_state : GameState = {
+            'game_state' : self.state,
+            'room_state' : self.room_state,
+            'game_inventory' : self.inventory,
+            'visited_rooms' : has_visited,
+            'current_room' : self.room_number,
+        }
+        return current_state
+
+    
+    
+    def _load_data(self, data : SaveFile) -> bool:
+        current_state : GameState = data['current_state']
+        self._load_game_state(current_state)
+
+        self.perma_state = data['perma_state']
+        self.checkpoints = data['checkpoints']
+        return True
+    
+    def _load_game_state(self, state : GameState):
+        self.room_number = state['current_room']
+        self.room_state = {int(key) : state['room_state'][key] for key in state['room_state']}
+        self.inventory = state['game_inventory']
         self.has_visited = defaultdict(lambda : 0)
-        for key in data['visited_rooms']:
-            self.has_visited[int(key)] = data['visited_rooms'][key]
-        self.state = data['game_state']
+        for key in state['visited_rooms']:
+            self.has_visited[int(key)] = state['visited_rooms'][key]
+        self.state = state['game_state']
+    
+    def make_checkpoint(self, checkpoint_name : str) -> bool:
+        self.checkpoints[checkpoint_name] = self._get_save_state()
+        return True
+    
+    def restore_checkpoint(self, checkpoint_name : str) -> bool:
+        if checkpoint_name not in self.checkpoints:
+            return False
+        self._load_game_state(self.checkpoints[checkpoint_name])
         return True
 
     def quit(self):
@@ -290,7 +370,23 @@ The score is 2-0 now.''')
             else:
                 print(room_text[19])
     
-    def manage_room_22():
+    def enter_room_26(self):
+        if game.has_visited[26] > 1:
+            return
+        print(room_text[26])
+
+    def manage_room_26(self):
+        if game.has_visited[26] > 1:
+            return room_options[self.room_number]
+        game.room_number = room_options[self.room_number]
+        game.make_checkpoint('Act1Start')
+        options = room_options[self.room_number]
+        stall()
+        print('')
+        game.room_number = 26
+        return options
+    
+    def manage_room_22(self):
         options : dict[str, int] = {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24}
         if 'flashlight' in game.inventory:
             options['Use your flashlight to light up the path'] = 25
@@ -303,7 +399,7 @@ The score is 2-0 now.''')
         result = options[option_dict[choice]]
         return result
 
-
+    
 room_text = {
     0 : '''---------ACT 0 - Prologue---------''',
     1 : '''You encountered a crossing. What do you do?''',
@@ -347,6 +443,7 @@ Looks like you are on your own...''',
     20: '''After a moment of thought, you come to the conclusion that the only way you can hope to get out is by going further in.
 While this seems like a very bad idea... It looks like the only way out.''',
     21: '''---------ACT 1 - Into the dark---------''',
+    26: 'New checkpoint!',
     22: [
 '''You take a few more steps down the stairs leading to the basement door.\n''',
 '''The deeper you go, the darker it gets. Eventually, you can barely see anything.\n''',
@@ -354,7 +451,8 @@ While this seems like a very bad idea... It looks like the only way out.''',
 ],
     23: 'You track back to find a light source... (TBD)',
     24: 'You fall and die from fall damage... (TBD)',
-    25: 'You use the flashlight you grabbed earlier to lighten up the path.'
+    25: '''You use the flashlight you grabbed earlier to lighten up the path.''',
+    27: '''... (TBD)'''
 }
 room_text_second_arrival = {
     1 : '''You are back at the crossing. What now?''',
@@ -391,11 +489,13 @@ room_options = {
     18: 17,
     19: 17,
     20 : 21,
-    21 : 22,
+    21 : 26,
+    26 : 22,
     22 : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24, 'Use your flashlight to light up the path' : 25},
     23 : 'END',
     24 : 'ENDING BADA1',
     25 : 'END',
+    27 : 'END'
 
 
 }
@@ -521,7 +621,7 @@ def stall(stall_text = '(Enter to continue.) -->'):
 
 game = Game()
 game.state['Cash'] = 1
-room_number = 0
+game.room_number = 0
 current_save_file : str|None = None
 if not os.path.isdir('saves'):
     try:
@@ -553,17 +653,15 @@ if decision != "new save":
                 save_choice = saves[save_index]
             except ValueError as e:
                 print("The save does not exist!")
-                print(f'({e})')
             except IndexError as e:
                 print("The save does not exist!")
-                print(f'({e}, index = {save_index})')
             else:
                 break
         if save_choice != 'new save':
             result = game.load(f'saves/{save_choice}.json')
             if result == True:
                 current_save_file = save_choice
-                game.has_visited[room_number] -= 1
+                game.has_visited[game.room_number] -= 1
                 print("Save was sucessfully loaded.")
                 stall()
             else:
@@ -589,40 +687,69 @@ if current_save_file is None:
     stall()
 clear_console()
 while True:
-    room = Room(room_number)
-    game.has_visited[room_number] += 1
-    room.enter()
-    result = room.manage()
+    while True:
+        room = Room(game.room_number)
+        game.has_visited[game.room_number] += 1
+        room.enter()
+        result = room.manage()
 
-    if type(result) == int:
-        room_number = result
-    elif type(result) == str:
-        break
+        if type(result) == int:
+            game.room_number = result
+        elif type(result) == str:
+            break
 
-if type(result) != str:
-    print('DEMO END')
-    stall()
-    close_everything()
+    if type(result) != str:
+        print('DEMO END - Your progress from this session will not be saved!')
+        response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
+        if response == 'y' or response == 'yes':
+            game.reset()
+            continue
+        print('Goodbye!')
+        stall()
+        close_everything()
 
-words = result.split()
-if words[0] == 'END':
-    print('DEMO END')
-    stall()
-    close_everything()
+    words = result.split()
+    if words[0] == 'END':
+        print('DEMO END - Your progress from this session will not be saved!')
+        response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
+        if response == 'y' or response == 'yes':
+            game.reset()
+            continue
+        print('Goodbye!')
+        stall()
+        close_everything()
 
-ending_text_dict : dict[str, str] = {
-    'BADA1' : 'You fell before you even got to the villan. Impressive.'
-}
-ending_name_dict : dict[str, str] = {
-    'BADA1' : 'Bad Ending: Fallen'
-}
-if words[0] == 'ENDING':
-    ending = words[1]
-    stall()
-    ending_text = ending_text_dict[ending]
-    ending_name = ending_name_dict[ending]
-    print(ending_text)
-    print(ending_name)
-    print('DEMO END')
-    stall()
-    close_everything()
+    ending_text_dict : dict[str, str] = {
+        'BADA1' : 'You fell before you even got to the villan. Impressive.'
+    }
+    ending_name_dict : dict[str, str] = {
+        'BADA1' : 'Failure: Fallen'
+    }
+    retryable_endings : list[str] = ['BADA1']
+    if words[0] == 'ENDING':
+        ending = words[1]
+        stall()
+        ending_text = ending_text_dict[ending]
+        ending_name = ending_name_dict[ending]
+        print(ending_text)
+        print(ending_name)
+        if ending in retryable_endings:
+            response : str = input('Input "quit" to exit the game. Input anything else to go back to a checkpoint and retry.\n').lower()
+            if response != 'quit':
+                match ending:
+                    case 'BADA1':
+                        result : bool = game.restore_checkpoint('Act1Start')
+                        if result == False: print('Checkpoint could not be loaded- Terminating session!')
+                        else:
+                            print("Checkpoint loaded!")
+                            stall()
+                            clear_console()
+                            continue
+        print('DEMO END - Your progress from this session will not be saved!')
+        response : str = input("Do you want to play again from the start? Input Y/yes to restart. This will wipe your save.\n").lower()
+        if response == 'y' or response == 'yes':
+            game.reset()
+            continue
+        print('Goodbye!')
+        stall()
+        close_everything()
