@@ -29,7 +29,7 @@ def clear_console(method : int = 1):
     else:
         os.system('cls' if os.name == 'nt' else 'clear')
 
-AnyJson = Union[str, int, float, bool, None, dict, list]
+AnyJson = Union[str, int, float, bool, None, dict[str, 'AnyJson'], list['AnyJson']]
 
 class GameState(TypedDict):
     '''game_state : dict[str, AnyJson]
@@ -62,7 +62,7 @@ class Game:
         self.perma_state : dict[str, AnyJson] = {}
         self.checkpoints : dict[str, GameState] = {}
         self.room_number : int = 0
-    
+
     def reset(self):
         self.state = {'Cash' : 0, 'KeyItems' : []}
         self.inventory = {}
@@ -77,13 +77,14 @@ class Game:
             with open(file_path, 'r', encoding='utf-8') as file:
                 pass
         except FileNotFoundError:
+            print(f'File path "{file_path}" not found!')
             return False
-        
+
         data : SaveFile = self._get_data()
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
         return True
-    
+
     def load(self, file_path = 'saves/default_save.json'):
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
@@ -107,7 +108,7 @@ class Game:
 
 
         return self._load_data(data)
-    
+
     def _get_data(self) -> SaveFile:
         current_state = self._get_save_state()
         data : SaveFile = {
@@ -129,8 +130,8 @@ class Game:
         }
         return current_state
 
-    
-    
+
+
     def _load_data(self, data : SaveFile) -> bool:
         current_state : GameState = data['current_state']
         self._load_game_state(current_state)
@@ -138,7 +139,7 @@ class Game:
         self.perma_state = data['perma_state']
         self.checkpoints = data['checkpoints']
         return True
-    
+
     def _load_game_state(self, state : GameState):
         self.room_number = state['current_room']
         self.room_state = {int(key) : state['room_state'][key] for key in state['room_state']}
@@ -147,11 +148,11 @@ class Game:
         for key in state['visited_rooms']:
             self.has_visited[int(key)] = state['visited_rooms'][key]
         self.state = state['game_state']
-    
+
     def make_checkpoint(self, checkpoint_name : str) -> bool:
         self.checkpoints[checkpoint_name] = self._get_save_state()
         return True
-    
+
     def restore_checkpoint(self, checkpoint_name : str) -> bool:
         if checkpoint_name not in self.checkpoints:
             return False
@@ -177,15 +178,14 @@ class Room:
         self.room_number : int = room_number
         self.entry_func : Callable[[], None] = self.get_entry_func()
         self.management_func : Callable[[], None] = self.get_management_func()
-        
-    
+
     def get_entry_func(self) -> Callable[[], None]:
         entry_func : Callable[[], None] = None
         entry_func = getattr(Room, f'enter_room_{self.room_number}', None)
         if entry_func is None:
             entry_func = Room.enter_default
         return entry_func
-    
+
     def get_management_func(self) -> Callable[[], None]:
         management_func : Callable[[], None] = None
         management_func = getattr(Room, f'manage_room_{self.room_number}', None)
@@ -301,7 +301,6 @@ Unfortunately, you dont't have any money left. What do you do?''')
             game.state['KeyItems'].append('Floor1Key1')
         self.enter_default()
 
-
     def enter_room_14(self):
         if 'Floor1Key1' in game.state['KeyItems']:
             if game.has_visited[16] == 0:
@@ -319,7 +318,6 @@ Unfortunately, you dont't have any money left. What do you do?''')
             return 16
         else:
             return 12
-
 
     def enter_room_15(self):
         if 'BasementKey1' in game.state['KeyItems']:
@@ -369,7 +367,7 @@ The score is 2-0 now.''')
                 print('''Your past experiences with doors tells you this isn't going to work.''')
             else:
                 print(room_text[19])
-    
+
     def enter_room_26(self):
         if game.has_visited[26] > 1:
             return
@@ -385,7 +383,7 @@ The score is 2-0 now.''')
         print('')
         game.room_number = 26
         return options
-    
+
     def manage_room_22(self):
         options : dict[str, int] = {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24}
         if 'flashlight' in game.inventory:
@@ -399,7 +397,7 @@ The score is 2-0 now.''')
         result = options[option_dict[choice]]
         return result
 
-    
+
 room_text = {
     0 : '''---------ACT 0 - Prologue---------''',
     1 : '''You encountered a crossing. What do you do?''',
@@ -449,7 +447,7 @@ While this seems like a very bad idea... It looks like the only way out.''',
 '''The deeper you go, the darker it gets. Eventually, you can barely see anything.\n''',
 '''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.\n\n'''
 ],
-    23: 'You track back to find a light source... (TBD)',
+    23: 'You track back to find a light source and eventually find one.\nYou use the newfound light to lighten up the path ahead.',
     24: 'You fall and die from fall damage... (TBD)',
     25: '''You use the flashlight you grabbed earlier to lighten up the path.''',
     27: '''... (TBD)'''
@@ -492,9 +490,9 @@ room_options = {
     21 : 26,
     26 : 22,
     22 : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24, 'Use your flashlight to light up the path' : 25},
-    23 : 'END',
+    23 : 27,
     24 : 'ENDING BADA1',
-    25 : 'END',
+    25 : 27,
     27 : 'END'
 
 
@@ -630,126 +628,135 @@ if not os.path.isdir('saves'):
         os.remove('saves')
         os.makedirs('saves')
 
-decision = input('Enter "new save" to make a new save. Enter anything else to continue a save.\n').lower()
-if decision != "new save":
-    saves : list[str] = []
-    for path, dirs, files in os.walk('saves'):
-        saves = files
-        break
-    saves = [os.path.splitext(sv)[0] for sv in saves]
-    if '.gitkeep' in saves: saves.remove('.gitkeep')
-    if saves:
-        print("Here are the registered saves:")
-        for index, save in enumerate(saves):
-            print(f'{index + 1}. {save}')
-        while True:
-            save_choice = input("What save do you want to load?\n")
-            if save_choice == 'new save' or save_choice in saves:
-                break
-            try:
-                save_index = int(save_choice) - 1
-                if save_index < 0:
-                    raise ValueError
-                save_choice = saves[save_index]
-            except ValueError as e:
-                print("The save does not exist!")
-            except IndexError as e:
-                print("The save does not exist!")
-            else:
-                break
-        if save_choice != 'new save':
-            result = game.load(f'saves/{save_choice}.json')
-            if result == True:
-                current_save_file = save_choice
-                game.has_visited[game.room_number] -= 1
-                print("Save was sucessfully loaded.")
-                stall()
-            else:
-                print(f'Save {save_choice} could not be loaded...')
-                print('Making a new save file...')
-    else:
-        print("There are no registered save files!")
-        print('Making a new save file...')
-
-if current_save_file is None:
-    while True:
-        save_name = input("What will this new save be called?\n")
-        if save_name == 'new save': print("Invalid!"); continue
-        try:
-            with open(f'saves/{save_name}.json', 'x') as f:
-                json.dump({}, f)
-        except FileExistsError:
-            print("This save already exists!")
+def main():
+    global current_save_file, game
+    decision = input('Enter "new save" to make a new save. Enter anything else to continue a save.\n').lower()
+    if decision != "new save":
+        saves : list[str] = []
+        for path, dirs, files in os.walk('saves'):
+            saves = files
+            break
+        saves = [os.path.splitext(sv)[0] for sv in saves]
+        if '.gitkeep' in saves: saves.remove('.gitkeep')
+        if saves:
+            print("Here are the registered saves:")
+            for index, save in enumerate(saves):
+                print(f'{index + 1}. {save}')
+            while True:
+                save_choice = input("What save do you want to load?\n")
+                if save_choice == 'new save' or save_choice in saves:
+                    break
+                try:
+                    save_index = int(save_choice) - 1
+                    if save_index < 0:
+                        raise ValueError
+                    save_choice = saves[save_index]
+                except ValueError as e:
+                    print("The save does not exist!")
+                except IndexError as e:
+                    print("The save does not exist!")
+                else:
+                    break
+            if save_choice != 'new save':
+                result = game.load(f'saves/{save_choice}.json')
+                if result == True:
+                    current_save_file = save_choice
+                    game.has_visited[game.room_number] -= 1
+                    print("Save was sucessfully loaded.")
+                    stall()
+                else:
+                    print(f'Save {save_choice} could not be loaded...')
+                    print('Making a new save file...')
         else:
-            break
-    current_save_file = save_name
-    print("New save was created; Starting game!")
-    stall()
-clear_console()
-while True:
+            print("There are no registered save files!")
+            print('Making a new save file...')
+
+    if current_save_file is None:
+        allow_list : list[str] = ['abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890 -_']
+        while True:
+            save_name = input("What will this new save be called?\n")
+            if not all([character in allow_list for character in save_name]): print("Invalid! (Invalid character was used)"); continue
+            if len(save_name) > 40: print("Invalid! (Save name is max. 40 lines)"); continue
+            if save_name == 'new save': print("Invalid! (Cannot use this save name)"); continue
+            try:
+                with open(f'saves/{save_name}.json', 'x') as f:
+                    json.dump({}, f)
+            except FileExistsError:
+                print("This save already exists!")
+            else:
+                break
+        current_save_file = save_name
+        print("New save was created; Starting game!")
+        stall()
+    clear_console()
     while True:
-        room = Room(game.room_number)
-        game.has_visited[game.room_number] += 1
-        room.enter()
-        result = room.manage()
+        while True:
+            room = Room(game.room_number)
+            game.has_visited[game.room_number] += 1
+            room.enter()
+            result = room.manage()
 
-        if type(result) == int:
-            game.room_number = result
-        elif type(result) == str:
-            break
+            if type(result) == int:
+                game.room_number = result
+            elif type(result) == str:
+                break
 
-    if type(result) != str:
-        print('DEMO END - Your progress from this session will not be saved!')
-        response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
-        if response == 'y' or response == 'yes':
-            game.reset()
-            continue
-        print('Goodbye!')
-        stall()
-        close_everything()
+        if type(result) != str:
+            print('DEMO END - Your progress from this session will not be saved!')
+            response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
+            if response == 'y' or response == 'yes':
+                game.reset()
+                continue
+            print('Goodbye!')
+            stall()
+            close_everything()
 
-    words = result.split()
-    if words[0] == 'END':
-        print('DEMO END - Your progress from this session will not be saved!')
-        response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
-        if response == 'y' or response == 'yes':
-            game.reset()
-            continue
-        print('Goodbye!')
-        stall()
-        close_everything()
+        words = result.split()
+        if words[0] == 'END':
+            print('DEMO END - Your progress from this session will not be saved!')
+            response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
+            if response == 'y' or response == 'yes':
+                game.reset()
+                continue
+            print('Goodbye!')
+            stall()
+            close_everything()
 
-    ending_text_dict : dict[str, str] = {
-        'BADA1' : 'You fell before you even got to the villan. Impressive.'
-    }
-    ending_name_dict : dict[str, str] = {
-        'BADA1' : 'Failure: Fallen'
-    }
-    retryable_endings : list[str] = ['BADA1']
-    if words[0] == 'ENDING':
-        ending = words[1]
-        stall()
-        ending_text = ending_text_dict[ending]
-        ending_name = ending_name_dict[ending]
-        print(ending_text)
-        print(ending_name)
-        if ending in retryable_endings:
-            response : str = input('Input "quit" to exit the game. Input anything else to go back to a checkpoint and retry.\n').lower()
-            if response != 'quit':
-                match ending:
-                    case 'BADA1':
-                        result : bool = game.restore_checkpoint('Act1Start')
-                        if result == False: print('Checkpoint could not be loaded- Terminating session!')
-                        else:
-                            print("Checkpoint loaded!")
-                            stall()
-                            clear_console()
-                            continue
-        print('DEMO END - Your progress from this session will not be saved!')
-        response : str = input("Do you want to play again from the start? Input Y/yes to restart. This will wipe your save.\n").lower()
-        if response == 'y' or response == 'yes':
-            game.reset()
-            continue
-        print('Goodbye!')
-        stall()
-        close_everything()
+        ending_text_dict : dict[str, str] = {
+            'BADA1' : 'You fell before you even got to the villan. Impressive.'
+        }
+        ending_name_dict : dict[str, str] = {
+            'BADA1' : 'Failure: Fallen'
+        }
+        retryable_endings : list[str] = ['BADA1']
+        if words[0] == 'ENDING':
+            ending = words[1]
+            stall()
+            ending_text = ending_text_dict[ending]
+            ending_name = ending_name_dict[ending]
+            print(ending_text)
+            print(ending_name)
+            if ending in retryable_endings:
+                stall()
+                response : str = input('Input "quit" to exit the game. Input anything else to go back to a checkpoint and retry.\n').lower()
+                if response != 'quit':
+                    match ending:
+                        case 'BADA1':
+                            result : bool = game.restore_checkpoint('Act1Start')
+                            if result == False: print('Checkpoint could not be loaded- Terminating session!')
+                            else:
+                                print("Checkpoint loaded!")
+                                stall()
+                                clear_console()
+                                continue
+            print('DEMO END - Your progress from this session will not be saved!')
+            stall()
+            response : str = input("Do you want to play again from the start? Input Y/yes to restart. This will wipe your save.\n").lower()
+            if response == 'y' or response == 'yes':
+                game.reset()
+                continue
+            print('Goodbye!')
+            stall()
+            close_everything()
+
+main()
