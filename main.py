@@ -672,7 +672,7 @@ def main():
             print('Making a new save file...')
 
     if current_save_file is None:
-        allow_list : list[str] = ['abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890 -_']
+        allow_list : list[str] = 'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890 -_'
         while True:
             save_name = input("What will this new save be called?\n")
             if not all([character in allow_list for character in save_name]): print("Invalid! (Invalid character was used)"); continue
