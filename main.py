@@ -3,7 +3,8 @@ from sys import exit as close_everything
 from collections import defaultdict
 import json
 import os
-from typing import Callable, Any, TypedDict, Union
+from typing import Callable, Any, TypedDict, Union, TypeAlias, NotRequired
+from enum import StrEnum
 
 ITEM_IDS : list[str] = ['bat', 'flashlight', 'radio', 'empty_flashlight']
 item_name_dict : dict[str, str] = {
@@ -30,14 +31,16 @@ def clear_console(method : int = 1):
         os.system('cls' if os.name == 'nt' else 'clear')
 
 AnyJson = Union[str, int, float, bool, None, dict[str, 'AnyJson'], list['AnyJson']]
+ManagmentFunction : TypeAlias = Callable[[], str|int]
+EntryFunction : TypeAlias = Callable[[], None]
 
 class GameState(TypedDict):
-    '''game_state : dict[str, AnyJson]
+    '''global_state : dict[str, AnyJson]
     room_state : dict[int|str, dict[str, AnyJson]]
     game_inventory : dict[str, int]
     visited_rooms : dict[int|str, int]
     current_room : int'''
-    game_state : dict[str, AnyJson]
+    global_state : dict[str, AnyJson]
     room_state : dict[int|str, dict[str, AnyJson]]
     game_inventory : dict[str, int]
     visited_rooms : dict[int|str, int]
@@ -53,9 +56,19 @@ class SaveFile(TypedDict):
     perma_state : dict[str, AnyJson]
     checkpoints : dict[str, GameState]
 
+class RoomType(StrEnum):
+    Standard = 'Standard'
+
+class RoomInfo(TypedDict):
+    entry_text : str
+    second_arrival_text : str
+    options : dict[str, int]|int|str
+    type : RoomType|str
+    style : NotRequired[dict[str, Any]]
+
 class Game:
     def __init__(self):
-        self.state : dict[str, AnyJson] = {'Cash' : 0, 'KeyItems' : []}
+        self.global_state : dict[str, AnyJson] = {'Cash' : 0, 'KeyItems' : []}
         self.inventory : dict[str, int] = {}
         self.has_visited : dict[int, int] = defaultdict(lambda : 0)
         self.room_state : dict[int, dict] = {}
@@ -64,7 +77,7 @@ class Game:
         self.room_number : int = 0
 
     def reset(self):
-        self.state = {'Cash' : 0, 'KeyItems' : []}
+        self.global_state = {'Cash' : 0, 'KeyItems' : []}
         self.inventory = {}
         self.has_visited = defaultdict(lambda : 0)
         self.room_state = {}
@@ -110,7 +123,7 @@ class Game:
         return self._load_data(data)
 
     def _get_data(self) -> SaveFile:
-        current_state = self._get_save_state()
+        current_state = self._get_game_state()
         data : SaveFile = {
             'current_state' : current_state,
             'is_filled' : 2,
@@ -119,18 +132,16 @@ class Game:
         }
         return data
 
-    def _get_save_state(self) -> GameState:
+    def _get_game_state(self) -> GameState:
         has_visited = {str(key) : self.has_visited[key] for key in self.has_visited}
         current_state : GameState = {
-            'game_state' : self.state,
+            'global_state' : self.global_state,
             'room_state' : self.room_state,
             'game_inventory' : self.inventory,
             'visited_rooms' : has_visited,
             'current_room' : self.room_number,
         }
         return current_state
-
-
 
     def _load_data(self, data : SaveFile) -> bool:
         current_state : GameState = data['current_state']
@@ -147,10 +158,10 @@ class Game:
         self.has_visited = defaultdict(lambda : 0)
         for key in state['visited_rooms']:
             self.has_visited[int(key)] = state['visited_rooms'][key]
-        self.state = state['game_state']
+        self.global_state = state['global_state']
 
     def make_checkpoint(self, checkpoint_name : str) -> bool:
-        self.checkpoints[checkpoint_name] = self._get_save_state()
+        self.checkpoints[checkpoint_name] = self._get_game_state()
         return True
 
     def restore_checkpoint(self, checkpoint_name : str) -> bool:
@@ -176,27 +187,27 @@ class Game:
 class Room:
     def __init__(self, room_number : int):
         self.room_number : int = room_number
-        self.entry_func : Callable[[], None] = self.get_entry_func()
-        self.management_func : Callable[[], None] = self.get_management_func()
+        self.entry_func : EntryFunction = self.get_entry_func()
+        self.management_func : ManagmentFunction = self.get_management_func()
 
-    def get_entry_func(self) -> Callable[[], None]:
-        entry_func : Callable[[], None] = None
+    def get_entry_func(self) -> EntryFunction:
+        entry_func : EntryFunction = None
         entry_func = getattr(Room, f'enter_room_{self.room_number}', None)
         if entry_func is None:
             entry_func = Room.enter_default
         return entry_func
 
-    def get_management_func(self) -> Callable[[], None]:
-        management_func : Callable[[], None] = None
+    def get_management_func(self) -> ManagmentFunction:
+        management_func : ManagmentFunction = None
         management_func = getattr(Room, f'manage_room_{self.room_number}', None)
         if management_func is None:
             management_func = Room.default_manage
         return management_func
 
-    def manage(self):
+    def manage(self) -> str|int:
         return self.management_func(self)
 
-    def enter(self):
+    def enter(self) -> None:
         self.entry_func(self)
 
     def default_manage(self) -> str|int:
@@ -247,7 +258,7 @@ class Room:
         if len(game.room_state[2]['items_left']) == 0:
             print("You encountered a shop. Unfortunately, there's nothing left to buy. I wonder why...")
 
-        elif game.state['Cash'] > 0:
+        elif game.global_state['Cash'] > 0:
             self.enter_default()
         else:
             print('''You encountered a mysterious shop with no one there. They have a few items on sale.
@@ -260,7 +271,7 @@ Unfortunately, you dont't have any money left. What do you do?''')
             stall()
             return 1
 
-        elif game.state['Cash'] > 0:
+        elif game.global_state['Cash'] > 0:
             print('''1-Buy an item\n2-Steal something\n3-Save your money and go back''')
             choice = get_int_choice(3)
             option_chosen = ['buy', 'steal', 'save'][choice - 1]
@@ -289,7 +300,7 @@ Unfortunately, you dont't have any money left. What do you do?''')
         game.inventory[item_to_get] += 1
         if option_chosen == 'buy':
             print('You grabbed the item and left the correct amount of money on the counter.')
-            game.state['Cash'] -= 1
+            game.global_state['Cash'] -= 1
         else:
             print('You snuck up to the stand, made sure no one was looking... And grabbed the item with seemingly no one noticing you.')
             print("Let's hope this dosen't backfire...")
@@ -297,16 +308,16 @@ Unfortunately, you dont't have any money left. What do you do?''')
         return 1
 
     def enter_room_13(self):
-        if 'Floor1Key1' not in game.state['KeyItems']:
-            game.state['KeyItems'].append('Floor1Key1')
+        if 'Floor1Key1' not in game.global_state['KeyItems']:
+            game.global_state['KeyItems'].append('Floor1Key1')
         self.enter_default()
 
     def enter_room_14(self):
-        if 'Floor1Key1' in game.state['KeyItems']:
+        if 'Floor1Key1' in game.global_state['KeyItems']:
             if game.has_visited[16] == 0:
                 self.enter_default()
 
-        elif 'BasementKey1' in game.state['KeyItems']:
+        elif 'BasementKey1' in game.global_state['KeyItems']:
             print("You try the key you grabbed on the first floor. Unfortunately, it doesn't seem to be the right one.")
         else:
             print('Its locked. You need a key to get in there.')
@@ -314,29 +325,29 @@ Unfortunately, you dont't have any money left. What do you do?''')
     def manage_room_14(self):
         if game.has_visited[16] == 0:
             stall()
-        if 'Floor1Key1' in game.state['KeyItems']:
+        if 'Floor1Key1' in game.global_state['KeyItems']:
             return 16
         else:
             return 12
 
     def enter_room_15(self):
-        if 'BasementKey1' in game.state['KeyItems']:
+        if 'BasementKey1' in game.global_state['KeyItems']:
             self.enter_default()
-        elif 'Floor1Key1' in game.state['KeyItems']:
+        elif 'Floor1Key1' in game.global_state['KeyItems']:
             print("You try the key you grabbed on the ground floor. Unfortunately, it doesn't seem to be the right one.")
         else:
             print('Its locked. You need a key to get in there.')
 
     def manage_room_15(self):
         stall()
-        if 'BasementKey1' in game.state['KeyItems']:
+        if 'BasementKey1' in game.global_state['KeyItems']:
             return 17
         else:
             return 12
 
     def enter_room_16(self):
-        if 'BasementKey1' not in game.state['KeyItems']:
-            game.state['KeyItems'].append('BasementKey1')
+        if 'BasementKey1' not in game.global_state['KeyItems']:
+            game.global_state['KeyItems'].append('BasementKey1')
         self.enter_default()
 
     def enter_room_18(self):
@@ -618,7 +629,7 @@ def stall(stall_text = '(Enter to continue.) -->'):
     input(stall_text)
 
 game = Game()
-game.state['Cash'] = 1
+game.global_state['Cash'] = 1
 game.room_number = 0
 current_save_file : str|None = None
 if not os.path.isdir('saves'):
@@ -672,10 +683,10 @@ def main():
             print('Making a new save file...')
 
     if current_save_file is None:
-        allow_list : list[str] = 'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890 -_'
+        allow_list : list[str] = ' -_'
         while True:
             save_name = input("What will this new save be called?\n")
-            if not all([character in allow_list for character in save_name]): print("Invalid! (Invalid character was used)"); continue
+            if not all([character in allow_list or character.isalnum() for character in save_name]): print("Invalid! (Invalid character was used)"); continue
             if len(save_name) > 40: print("Invalid! (Save name is max. 40 lines)"); continue
             if save_name == 'new save': print("Invalid! (Cannot use this save name)"); continue
             try:
@@ -694,14 +705,14 @@ def main():
             room = Room(game.room_number)
             game.has_visited[game.room_number] += 1
             room.enter()
-            result = room.manage()
+            room_result : str|int = room.manage()
 
-            if type(result) == int:
-                game.room_number = result
-            elif type(result) == str:
+            if type(room_result) == int:
+                game.room_number = room_result
+            elif type(room_result) == str:
                 break
 
-        if type(result) != str:
+        if type(room_result) != str:
             print('DEMO END - Your progress from this session will not be saved!')
             response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
             if response == 'y' or response == 'yes':
@@ -711,7 +722,7 @@ def main():
             stall()
             close_everything()
 
-        words = result.split()
+        words = room_result.split()
         if words[0] == 'END':
             print('DEMO END - Your progress from this session will not be saved!')
             response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
@@ -742,8 +753,8 @@ def main():
                 if response != 'quit':
                     match ending:
                         case 'BADA1':
-                            result : bool = game.restore_checkpoint('Act1Start')
-                            if result == False: print('Checkpoint could not be loaded- Terminating session!')
+                            restore_result : bool = game.restore_checkpoint('Act1Start')
+                            if restore_result == False: print('Checkpoint could not be loaded- Terminating session!')
                             else:
                                 print("Checkpoint loaded!")
                                 stall()
