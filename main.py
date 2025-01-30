@@ -45,6 +45,7 @@ class GameState(TypedDict):
     game_inventory : dict[str, int]
     visited_rooms : dict[int|str, int]
     current_room : int
+    temp_data : dict[str, AnyJson]
 
 class SaveFile(TypedDict):
     '''current_state : GameState
@@ -78,6 +79,7 @@ class Game:
         self.perma_state : dict[str, AnyJson] = {}
         self.checkpoints : dict[str, GameState] = {}
         self.room_number : int = 0
+        self.temp_data : dict[str, AnyJson] = {}
 
     def reset(self):
         self.global_state = {'Cash' : 1, 'KeyItems' : []}
@@ -87,6 +89,7 @@ class Game:
         self.perma_state = {}
         self.checkpoints = {}
         self.room_number = 0
+        self.temp_data = {}
 
     def save(self, file_path = 'saves/default_save.json'):
         try:
@@ -100,7 +103,7 @@ class Game:
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
         return True
-
+    
     def load(self, file_path = 'saves/default_save.json'):
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
@@ -124,7 +127,7 @@ class Game:
 
 
         return self._load_data(data)
-
+      
     def _get_data(self) -> SaveFile:
         current_state = self._get_game_state()
         data : SaveFile = {
@@ -143,9 +146,10 @@ class Game:
             'game_inventory' : self.inventory,
             'visited_rooms' : has_visited,
             'current_room' : self.room_number,
+            'temp_data' : self.temp_data
         }
         return current_state
-
+    
     def _load_data(self, data : SaveFile) -> bool:
         current_state : GameState = data['current_state']
         self._load_game_state(current_state)
@@ -162,6 +166,7 @@ class Game:
         for key in state['visited_rooms']:
             self.has_visited[int(key)] = state['visited_rooms'][key]
         self.global_state = state['global_state']
+        self.temp_data = state['temp_data']
 
     def make_checkpoint(self, checkpoint_name : str) -> bool:
         self.checkpoints[checkpoint_name] = self._get_game_state()
@@ -815,6 +820,7 @@ def main():
                 game.room_number = room_result
             elif type(room_result) == str:
                 break
+            game.temp_data.clear()
 
         if type(room_result) != str:
             print('DEMO END - Your progress from this session will not be saved!')
