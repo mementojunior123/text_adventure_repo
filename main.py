@@ -3,8 +3,8 @@ from sys import exit as close_everything
 from collections import defaultdict
 import json
 import os
-from typing import Callable, Any, TypedDict, Union, TypeAlias, NotRequired
-from enum import StrEnum
+from typing import Callable, Any, TypedDict, Union, TypeAlias
+from enum import Enum
 
 ITEM_IDS : list[str] = ['bat', 'flashlight', 'radio', 'empty_flashlight']
 item_name_dict : dict[str, str] = {
@@ -56,19 +56,22 @@ class SaveFile(TypedDict):
     perma_state : dict[str, AnyJson]
     checkpoints : dict[str, GameState]
 
-class RoomType(StrEnum):
-    Standard = 'Standard'
+class RoomType(Enum):
+    STANDARD = 'Standard'
+    CHECKPOINT = 'Checkpoint'
 
-class RoomInfo(TypedDict):
-    entry_text : str
+class OptionalRoomInfo(TypedDict, total=False):
     second_arrival_text : str
+    extra_info : dict[str, Any]
+
+class RoomInfo(OptionalRoomInfo):
+    entry_text : str
     options : dict[str, int]|int|str
     type : RoomType|str
-    style : NotRequired[dict[str, Any]]
 
 class Game:
     def __init__(self):
-        self.global_state : dict[str, AnyJson] = {'Cash' : 0, 'KeyItems' : []}
+        self.global_state : dict[str, AnyJson] = {'Cash' : 1, 'KeyItems' : []}
         self.inventory : dict[str, int] = {}
         self.has_visited : dict[int, int] = defaultdict(lambda : 0)
         self.room_state : dict[int, dict] = {}
@@ -77,7 +80,7 @@ class Game:
         self.room_number : int = 0
 
     def reset(self):
-        self.global_state = {'Cash' : 0, 'KeyItems' : []}
+        self.global_state = {'Cash' : 1, 'KeyItems' : []}
         self.inventory = {}
         self.has_visited = defaultdict(lambda : 0)
         self.room_state = {}
@@ -115,7 +118,7 @@ class Game:
                 file_path = file_path[6:]
             print(f"{file_path} is not a valid save file - Wiping data!")
             return True
-        elif is_filled < 2:
+        elif is_filled < 3:
             print("Save is outdated and data cannot be recovered - Wiping data!")
             return True
 
@@ -126,7 +129,7 @@ class Game:
         current_state = self._get_game_state()
         data : SaveFile = {
             'current_state' : current_state,
-            'is_filled' : 2,
+            'is_filled' : 3,
             'perma_state' : self.perma_state,
             'checkpoints' : self.checkpoints
         }
@@ -172,6 +175,7 @@ class Game:
 
     def quit(self):
         print('Goodbye!')
+        stall()
         close_everything()
 
     def print_inventory(self):
@@ -187,6 +191,7 @@ class Game:
 class Room:
     def __init__(self, room_number : int):
         self.room_number : int = room_number
+        self.data : RoomInfo = room_data[room_number]
         self.entry_func : EntryFunction = self.get_entry_func()
         self.management_func : ManagmentFunction = self.get_management_func()
 
@@ -211,7 +216,9 @@ class Room:
         self.entry_func(self)
 
     def default_manage(self) -> str|int:
-        options = room_options[self.room_number]
+        if self.data['type'] == RoomType.CHECKPOINT:
+            return self._manage_checkpoint()
+        options = self.data['options']
         if type(options) == str:
             return options
         elif type(options) == int:
@@ -228,11 +235,13 @@ class Room:
         return result
 
     def enter_default(self):
+        if self.data['type'] == RoomType.CHECKPOINT:
+            return self._enter_checkpoint()
         if game.has_visited[self.room_number] <= 1:
-            txt_to_display = room_text[self.room_number]
+            txt_to_display = self.data['entry_text']
         else:
-            second_arrival_text = room_text_second_arrival.get(self.room_number, False)
-            txt_to_display = second_arrival_text if second_arrival_text else room_text[self.room_number]
+            second_arrival_text = self.data.get('second_arrival_text', False)
+            txt_to_display = second_arrival_text if second_arrival_text else self.data['entry_text']
 
 
         if type(txt_to_display) == str:
@@ -245,11 +254,21 @@ class Room:
                 if part == txt_to_display[-1]: stall(); break
                 stall("")
 
-    def enter_room_1(self):
-        if game.has_visited[1] <= 1:
-            self.enter_default()
-        else:
-            print('You are back at the crossroads. What now?')
+    def _enter_checkpoint(self):
+        if game.has_visited[self.room_number] > 1:
+            return
+        print(self.data['entry_text'])
+
+    def _manage_checkpoint(self) -> str|int:
+        options = self.data['options']
+        if game.has_visited[self.room_number] > 1:
+            return options
+        game.room_number = self.data['options']
+        game.make_checkpoint(self.data['extra_info']['checkpoint_name'])
+        stall()
+        print('')
+        game.room_number = self.room_number
+        return options
 
     def enter_room_2(self):
         if game.has_visited[2] <= 1:
@@ -352,17 +371,17 @@ Unfortunately, you dont't have any money left. What do you do?''')
 
     def enter_room_18(self):
         if game.has_visited[18] > 1:
-            print(room_text_second_arrival[18])
+            print(self.data['second_arrival_text'])
             return
 
         if 'radio' in game.inventory:
             print('''You tried using the radio you got earlier to get help.\nNo one picked up...''')
         else:
-            print(room_text[18])
+            print(self.data['entry_text'])
 
     def enter_room_19(self):
         if game.has_visited[19] > 1:
-            print(room_text_second_arrival[19])
+            print(self.data['second_arrival_text'])
             return
 
         did_fight_door = game.has_visited[9]
@@ -377,23 +396,7 @@ The score is 2-0 now.''')
             if did_fight_door:
                 print('''Your past experiences with doors tells you this isn't going to work.''')
             else:
-                print(room_text[19])
-
-    def enter_room_26(self):
-        if game.has_visited[26] > 1:
-            return
-        print(room_text[26])
-
-    def manage_room_26(self):
-        if game.has_visited[26] > 1:
-            return room_options[self.room_number]
-        game.room_number = room_options[self.room_number]
-        game.make_checkpoint('Act1Start')
-        options = room_options[self.room_number]
-        stall()
-        print('')
-        game.room_number = 26
-        return options
+                print(self.data['entry_text'])
 
     def manage_room_22(self):
         options : dict[str, int] = {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24}
@@ -408,37 +411,130 @@ The score is 2-0 now.''')
         result = options[option_dict[choice]]
         return result
 
+room_data : dict[int, RoomType] = {
+    0 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''---------ACT 0 - Prologue---------''',
+'options' : 1,
+},
 
-room_text = {
-    0 : '''---------ACT 0 - Prologue---------''',
-    1 : '''You encountered a crossing. What do you do?''',
-    2 : '''You encountered a mysterious shop. They have a few items on sale.
+    1 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You encountered a crossing. What do you do?''',
+'second_arrival_text' : '''You are back at the crossroads. What now?''',
+'options' : {'Go left' : 2, 'Go right' : 3},
+},
+
+    2 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You encountered a mysterious shop. They have a few items on sale.
 You don't have much money, so you can only buy one of them.
 What do you do?''',
-    3 : '''There's an abandoned mansion up ahead. Should you investigate?''',
-    4 : '''Are you sure? You might miss out on the entire game...''',
-    5 : '''Unfortunately for you, you don't really have a choice.''',
-    6 : '''Despite your initial hesitations, you decided to investigate. Will you regret this choice? Only time will tell...''',
-    7 : '''You decided to investigate. Will you regret this choice? Only time will tell...''',
-    8 : '''You arrived at the mansion. You walk up to the front door and try to open it. However, it's locked. What do you do?''',
-    9 : '''You tried to force the door open. Unfortunately, for you, the door won't budge.
+'options' : {'Go back' : 1},
+},
+
+    3 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''There's an abandoned mansion up ahead. Should you investigate?''',
+'options' : {'Investigate' : 7,  '''Don't investigate''' : 4},
+},
+
+    4 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Are you sure? You might miss out on the entire game...''',
+'options' : {'Yes' : 5, 'No' : 6}
+},
+
+    5 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Unfortunately for you, you don't really have a choice.''',
+'options' : 6
+},
+
+    6 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Despite your initial hesitations, you decided to investigate. Will you regret this choice? Only time will tell...''',
+'options' : 8
+},
+
+    7 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You decided to investigate. Will you regret this choice? Only time will tell...''',
+'options' : 8
+},
+
+    8 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You arrived at the mansion. You walk up to the front door and try to open it. However, it's locked. What do you do?''',
+'second_arrival_text' : 'You think about another way to get into the mansion.',
+'options' : {'Force the door open' : 9, 'Break a window' : 10, 'Try to find a way around' : 11},
+},
+
+    9 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You tried to force the door open. Unfortunately, for you, the door won't budge.
 Not one to give up so quickly, you start fighting with the door.
 ...
 The door won.''',
-    10: '''You look around for a window to break and find one.
+'second_arrival_text' : '''You have a feeling this won't be very productive.''',
+'options' : 8
+},
+
+    10 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You look around for a window to break and find one.
 Unfortunatively for you, it's way too small for you to fit in.
 Besides, you don't exactly want to draw attention to what you are doing.''',
-    11: '''You looked around the house for a way in.
+'second_arrival_text' : '''This can't be the right way. Breaking the window would be way too loud...''',
+'options' : 8
+},
+
+    11 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You looked around the house for a way in.
 While the front door was well maintained, the backdoor had already fallen off on its own.
 You made your way to the house's living room.''',
-    12: 'The mansion is huge, and there are quite a few things worth taking a look at. Where do you go?',
-    13: 'You searched around and found a key. Maybe it could be useful for something?',
-    14: 'You used the key you found and went to the first floor.',
-    15: '''You used the second key you found on the basement door. As you turn the doorknob, you question why you are doing this.
+'options' : 12
+},
+
+    12 : {
+'type' : RoomType.STANDARD,
+'entry_text' : 'The mansion is huge, and there are quite a few things worth taking a look at. Where do you go?',
+'second_arrival_text' : '''What do you investigate?''',
+'options' : {'The 1st floor' : 14, 'The ground floor' : 13, 'The basement' : 15},
+},
+
+    13 : {
+'type' : RoomType.STANDARD,
+'entry_text' : 'You searched around and found a key. Maybe it could be useful for something?',
+'second_arrival_text' : '''You couldn't find anything interesting.''',
+'options' : 12
+},
+
+    14 : {
+'type' : RoomType.STANDARD,
+'entry_text' : 'You used the key you found and went to the first floor.',
+'options' : 16
+},
+
+    15 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You used the second key you found on the basement door. As you turn the doorknob, you question why you are doing this.
 But you choose to push on anyways. You didn't come this far just to turn around, right?''',
-    16: '''You searched around and found another key.
+'options' : 17
+},
+
+    16 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You searched around and found another key.
 You feel like you might know what to do with it.''',
-    17: [
+'second_arrival_text' : '''You couldn't find anything interesting.''',
+'options' : 12
+},
+
+    17 : {
+'type' : RoomType.STANDARD,
+'entry_text' :  [
 '''As you take your first steps into the basement, you already start regretting your decision.
 But before you can even consider getting out...\n''',
 '''*BLAM!*\n''',
@@ -446,69 +542,79 @@ But before you can even consider getting out...\n''',
 '''...\n''',
 '''Looks like you only have one way forwards. Unless...\n\n'''
 ],
-    18: '''You try to call for help with yout voice. Unfortunately, no one is around to hear you.
+'second_arrival_text' : '''What now?''',
+'options' : {'Call for help' : 18, 'Investigate the basement' : 20, 'Break the door open' : 19},
+},
+
+    18 : {
+'type' : RoomType.STANDARD,
+'entry_text' :'''You try to call for help with yout voice. Unfortunately, no one is around to hear you.
 Looks like you are on your own...''',
-    19: '''You try to force the door open. Unfortunatively, it's stronger than you expected and dosent even budge.''',
-    20: '''After a moment of thought, you come to the conclusion that the only way you can hope to get out is by going further in.
+'second_arrival_text' : '''This isn't going to work...''',
+'options' : 17
+},
+
+    19 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You try to force the door open. Unfortunatively, it's stronger than you expected and dosent even budge.''',
+'second_arrival_text' : '''That's not going to work.''',
+'options' : 17
+},
+
+    20 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''After a moment of thought, you come to the conclusion that the only way you can hope to get out is by going further in.
 While this seems like a very bad idea... It looks like the only way out.''',
-    21: '''---------ACT 1 - Into the dark---------''',
-    26: 'New checkpoint!',
-    22: [
+'options' : 21
+},
+
+    21 : {
+'type' : RoomType.STANDARD,
+'entry_text' :  '''---------ACT 1 - Into the dark---------''',
+'options' : 26
+},
+
+    26 : {
+'type' : RoomType.CHECKPOINT,
+'entry_text' : 'New checkpoint!',
+'options' : 22,
+'extra_info' : {'checkpoint_name' : 'Act1Start'}
+},
+
+    22 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
 '''You take a few more steps down the stairs leading to the basement door.\n''',
 '''The deeper you go, the darker it gets. Eventually, you can barely see anything.\n''',
 '''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.\n\n'''
 ],
-    23: 'You track back to find a light source and eventually find one.\nYou use the newfound light to lighten up the path ahead.',
-    24: 'You fall and die from fall damage... (TBD)',
-    25: '''You use the flashlight you grabbed earlier to lighten up the path.''',
-    27: '''... (TBD)'''
+'options' : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24, 'Use your flashlight to light up the path' : 25},
+},
+
+    23 : {
+'type' : RoomType.STANDARD,
+'entry_text' : 'You track back to find a light source and eventually find one.\nYou use the newfound light to lighten up the path ahead.',
+'options' : 27
+},
+
+    24 : {
+'type' : RoomType.STANDARD,
+'entry_text' : 'You fall and die from fall damage... (TBD)',
+'options' : 'ENDING BADA1',
+},
+
+    25 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You use the flashlight you grabbed earlier to lighten up the path.''',
+'options' : 27
+},
+
+    27 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''... (TBD)''',
+'options' : 'END'
+},
 }
-room_text_second_arrival = {
-    1 : '''You are back at the crossing. What now?''',
-    8 : 'You think about another way to get into the mansion.',
-    9 : '''You have a feeling this won't be very productive.''',
-    10: '''This can't be the right way. Breaking the window would be way too loud...''',
-    12: '''What do you investigate?''',
-    13: '''You couldn't find anything interesting.''',
-    16: '''You couldn't find anything interesting.''',
-    17 : '''What now?''',
-    18: '''This isn't going to work...''',
-    19: '''That's not going to work.''',
-
-}
-room_options = {
-    0 : 1,
-    1 : {'Go left' : 2, 'Go right' : 3},
-    2 : {'Go back' : 1},
-    3 : {'Investigate' : 7,  '''Don't investigate''' : 4},
-    4 : {'Yes' : 5, 'No' : 6},
-    5 : 6,
-    6 : 8,
-    7 : 8,
-    8 : {'Force the door open' : 9, 'Break a window' : 10, 'Try to find a way around' : 11},
-    9 : 8,
-    10: 8,
-    11: 12,
-    12: {'The 1st floor' : 14, 'The ground floor' : 13, 'The basement' : 15},
-    13: 12,
-    14: 16,
-    15: 17,
-    16: 12,
-    17: {'Call for help' : 18, 'Investigate the basement' : 20, 'Break the door open' : 19},
-    18: 17,
-    19: 17,
-    20 : 21,
-    21 : 26,
-    26 : 22,
-    22 : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24, 'Use your flashlight to light up the path' : 25},
-    23 : 27,
-    24 : 'ENDING BADA1',
-    25 : 27,
-    27 : 'END'
-
-
-}
-
 
 
 
@@ -629,8 +735,6 @@ def stall(stall_text = '(Enter to continue.) -->'):
     input(stall_text)
 
 game = Game()
-game.global_state['Cash'] = 1
-game.room_number = 0
 current_save_file : str|None = None
 if not os.path.isdir('saves'):
     try:
@@ -765,6 +869,7 @@ def main():
             response : str = input("Do you want to play again from the start? Input Y/yes to restart. This will wipe your save.\n").lower()
             if response == 'y' or response == 'yes':
                 game.reset()
+                clear_console()
                 continue
             print('Goodbye!')
             stall()
