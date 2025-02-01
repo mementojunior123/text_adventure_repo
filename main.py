@@ -70,6 +70,12 @@ class RoomInfo(OptionalRoomInfo):
     options : dict[str, int]|int|str
     type : RoomType|str
 
+class EndingInfo(TypedDict):
+    ending_text : str
+    ending_name : str
+    retryable : bool
+    retry_checkpoint : str
+
 class Game:
     def __init__(self):
         self.global_state : dict[str, AnyJson] = {'Cash' : 1, 'KeyItems' : []}
@@ -257,6 +263,7 @@ class Room:
             for part in txt_to_display:
                 print(part, end = '')
                 if part == txt_to_display[-1]: stall(); break
+                if part == txt_to_display[-1]: stall(); print(''); break
                 stall("")
 
     def _enter_checkpoint(self):
@@ -545,7 +552,7 @@ But before you can even consider getting out...\n''',
 '''*BLAM!*\n''',
 '''The door closes in on you. Even worse, it's also locked on the inside...\n''',
 '''...\n''',
-'''Looks like you only have one way forwards. Unless...\n\n'''
+'''Looks like you only have one way forwards. Unless...\n'''
 ],
 'second_arrival_text' : '''What now?''',
 'options' : {'Call for help' : 18, 'Investigate the basement' : 20, 'Break the door open' : 19},
@@ -591,20 +598,27 @@ While this seems like a very bad idea... It looks like the only way out.''',
 'entry_text' : [
 '''You take a few more steps down the stairs leading to the basement door.\n''',
 '''The deeper you go, the darker it gets. Eventually, you can barely see anything.\n''',
-'''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.\n\n'''
+'''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.\n'''
 ],
 'options' : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24, 'Use your flashlight to light up the path' : 25},
 },
 
     23 : {
 'type' : RoomType.STANDARD,
-'entry_text' : 'You track back to find a light source and eventually find one.\nYou use the newfound light to lighten up the path ahead.',
+'entry_text' : '''You track back to find a light source and eventually find one.
+You use the newfound light to lighten up the path ahead.''',
 'options' : 27
 },
 
     24 : {
 'type' : RoomType.STANDARD,
-'entry_text' : 'You fall and die from fall damage... (TBD)',
+'entry_text' : [
+    'Despite not being able to see anything, you choose to push on anyways.\n',
+    '''Eventually, you can't even see the steps you're going wakling on.\n''',
+    '''Your pace slows down to a crawl as you try to avoid falling.\n''',
+    '''Unfortunately for you, you step on a crack that was concealed in the darkness...\n''',
+    '''And you tumble all the way down the stairs.\n'''
+],
 'options' : 'ENDING BADA1',
 },
 
@@ -616,12 +630,27 @@ While this seems like a very bad idea... It looks like the only way out.''',
 
     27 : {
 'type' : RoomType.STANDARD,
+'entry_text' : [
+'''As you descend further, you notice that the stairs are slowly deteriorating.''',
+],
+'options' : 28
+},
+
+    28 : {
+'type' : RoomType.STANDARD,
 'entry_text' : '''... (TBD)''',
 'options' : 'END'
 },
 }
 
-
+ending_data : dict[str, EndingInfo] = {
+'BADA1' : {
+'ending_name' : 'Bad Ending: (Litterally) Fallen',
+'ending_text' : '''That wasn't very bright...''',
+'retryable' : True,
+'retry_checkpoint' : 'Act1Start'
+}
+}
 
 def get_int_choice(option_count : int) -> int:
     valid = [str(i + 1) for i in range(option_count)]
@@ -671,7 +700,6 @@ def is_valid_command(message : str):
     match command:
         case 'stop'|'end'|'quit'|'exit':
             return True
-
         case 'check':
             if arg_count == 0:
                 return default_error
@@ -843,33 +871,25 @@ def main():
             stall()
             close_everything()
 
-        ending_text_dict : dict[str, str] = {
-            'BADA1' : 'You fell before you even got to the villan. Impressive.'
-        }
-        ending_name_dict : dict[str, str] = {
-            'BADA1' : 'Failure: Fallen'
-        }
-        retryable_endings : list[str] = ['BADA1']
         if words[0] == 'ENDING':
-            ending = words[1]
-            stall()
-            ending_text = ending_text_dict[ending]
-            ending_name = ending_name_dict[ending]
+            clear_console()
+            ending_code = words[1]
+            ending_info = ending_data[ending_code]
+            ending_text = ending_info['ending_text']
+            ending_name = ending_info['ending_name']
             print(ending_text)
             print(ending_name)
-            if ending in retryable_endings:
+            if ending_info['retryable']:
                 stall()
                 response : str = input('Input "quit" to exit the game. Input anything else to go back to a checkpoint and retry.\n').lower()
                 if response != 'quit':
-                    match ending:
-                        case 'BADA1':
-                            restore_result : bool = game.restore_checkpoint('Act1Start')
-                            if restore_result == False: print('Checkpoint could not be loaded- Terminating session!')
-                            else:
-                                print("Checkpoint loaded!")
-                                stall()
-                                clear_console()
-                                continue
+                    restore_result : bool = game.restore_checkpoint(ending_info['retry_checkpoint'])
+                    if restore_result == False: print('Checkpoint could not be loaded- Terminating session!')
+                    else:
+                        print("Checkpoint loaded!")
+                        stall()
+                        clear_console()
+                        continue
             print('DEMO END - Your progress from this session will not be saved!')
             stall()
             response : str = input("Do you want to play again from the start? Input Y/yes to restart. This will wipe your save.\n").lower()
