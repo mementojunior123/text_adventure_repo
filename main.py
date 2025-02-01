@@ -262,7 +262,6 @@ class Room:
             txt_to_display : list[str]
             for part in txt_to_display:
                 print(part, end = '')
-                if part == txt_to_display[-1]: stall(); break
                 if part == txt_to_display[-1]: stall(); print(''); break
                 stall("")
 
