@@ -320,12 +320,16 @@ class Room:
         if type(txt_to_display) == str:
             print(txt_to_display)
         else:
-            print('(Enter to continue.) -->')
             txt_to_display : list[str]
             for part in txt_to_display:
-                print(part, end = '')
-                if part == txt_to_display[-1]: stall(); print(''); break
-                stall("")
+                if part == txt_to_display[-1]:
+                    print(part, end = '\n')
+                    if not isinstance(self.data['options'], int): 
+                        stall()
+                        print('')
+                    break
+                else:
+                    stall(part)
 
     def _enter_checkpoint(self):
         if game.has_visited[self.room_number] > 1:
@@ -608,11 +612,11 @@ You feel like you might know what to do with it.''',
 'type' : RoomType.STANDARD,
 'entry_text' :  [
 '''As you take your first steps into the basement, you already start regretting your decision.
-But before you can even consider getting out...\n''',
-'''*BLAM!*\n''',
-'''The door closes in on you. Even worse, it's also locked on the inside...\n''',
-'''...\n''',
-'''Looks like you only have one way forwards. Unless...\n'''
+But before you can even consider getting out...''',
+'''*BLAM!*''',
+'''The door closes in on you. Even worse, it's also locked on the inside...''',
+'''...''',
+'''Looks like you only have one way forwards. Unless...'''
 ],
 'second_arrival_text' : '''What now?''',
 'options' : {'Call for help' : 18, 'Investigate the basement' : 20, 'Break the door open' : 19},
@@ -656,9 +660,9 @@ While this seems like a very bad idea... It looks like the only way out.''',
     22 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''You take a few more steps down the stairs leading to the basement door.\n''',
-'''The deeper you go, the darker it gets. Eventually, you can barely see anything.\n''',
-'''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.\n'''
+'''You take a few more steps down the stairs leading to the basement door.''',
+'''The deeper you go, the darker it gets. Eventually, you can barely see anything.''',
+'''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.'''
 ],
 'options' : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24, 'Use your flashlight to light up the path' : 25},
 },
@@ -673,11 +677,11 @@ You use the newfound light to lighten up the path ahead.''',
     24 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-    'Despite not being able to see anything, you choose to push on anyways.\n',
-    '''Eventually, you can't even see the steps you're going wakling on.\n''',
-    '''Your pace slows down to a crawl as you try to avoid falling.\n''',
-    '''Unfortunately for you, you step on a crack that was concealed in the darkness...\n''',
-    '''And you tumble all the way down the stairs.\n'''
+    'Despite not being able to see anything, you choose to push on anyways.',
+    '''Eventually, you can't even see the steps you're going wakling on.''',
+    '''Your pace slows down to a crawl as you try to avoid falling.''',
+    '''Unfortunately for you, you step on a crack that was concealed in the darkness...''',
+    '''And you tumble all the way down the stairs.'''
 ],
 'options' : 'ENDING BADA1',
 },
@@ -693,7 +697,6 @@ You use the newfound light to lighten up the path ahead.''',
 'entry_text' : [
 '''As you descend further, you notice that the stairs are slowly deteriorating.''',
 '''Thanks the light you brought, you manage to avoid a big crack in the stairs.''',
-''''''
 ],
 'options' : 28
 },
@@ -707,8 +710,8 @@ You use the newfound light to lighten up the path ahead.''',
 
 ending_data : dict[str, EndingInfo] = {
 'BADA1' : {
-'ending_name' : 'Bad Ending: (Litterally) Fallen',
-'ending_text' : '''That wasn't very bright...''',
+'ending_name' : 'Bad Ending: Tumble',
+'ending_text' : '''That wasn't very bright... What did you think was going to happen!''',
 'retryable' : True,
 'retry_checkpoint' : 'Act1Start'
 }
