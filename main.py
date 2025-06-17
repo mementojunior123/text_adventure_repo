@@ -216,12 +216,13 @@ class Game:
         if len(self.inventory) <= 0:
             print("Inventory is empty.")
             return
-        for item in self.inventory:
-            item_count = self.inventory[item]
-            item_code : ItemCode = item['code']
+        for item_slot in self.inventory:
+            item_count = item_slot.get('amount', 1)
+            item_code : ItemCode = item_slot['code']
             item_name : str = item_data[item_code]['name']
+            item_desc : str = item_data[item_code]['description']
             if item_count <= 0: continue
-            print(f'{item_name} ({item_count})' if item_count >= 1 else f'{item_name}')
+            print(f'{item_name} ({item_count}) - {item_desc}' if item_slot['stackable'] else f'{item_name} - {item_desc}')
 
     def find_inventory_item(self, item_code : ItemCode) -> AnyInvSlotData|None:
         for item_slot in self.inventory:
