@@ -6,7 +6,7 @@ import os
 from typing import Callable, Any, TypedDict, Union, TypeAlias, Literal
 from enum import Enum
 
-SAVE_VERSION = 4
+SAVE_VERSION = 5
 
 AnyJson : TypeAlias = Union[str, int, float, bool, None, dict[str, 'AnyJson'], list['AnyJson']]
 ItemCode : TypeAlias = str
@@ -22,6 +22,7 @@ class ItemInfo(TypedDict):
     name : str
     description : str
     stackable : bool
+    short_description : str
 
 #Inventory slots in the inventory
 class BaseInventorySlotData(TypedDict):
@@ -91,17 +92,19 @@ class EndingInfo(TypedDict):
     retryable : bool
     retry_checkpoint : str
 
-item_data : dict[ItemCode, ItemInfo] = {
-    ItemCodes.BAT.value : {'name' : 'Wooden Bat', 'description' : 'A wooden bat', 'stackable' : False},
-    ItemCodes.FLASHLIGHT.value : {'name' : 'Flashlight', 'description' : 'A flaslight', 'stackable' : False},
-    ItemCodes.RADIO.value : {'name' : 'Radio', 'description' : 'A radio', 'stackable' : False},
-    ItemCodes.EMPTY_FLASHLIGHT.value : {'name' : 'Expired Flashlight', 'description' : 'A flashlight with no batteries', 'stackable' : False}
+ITEM_DATA : dict[ItemCode, ItemInfo] = {
+    ItemCodes.BAT : {'name' : 'Wooden Bat', 'description' : 'A wooden bat', 'stackable' : False, 'short_description' : 'A wooden bat'},
+    ItemCodes.FLASHLIGHT : {'name' : 'Flashlight', 'description' : 'A flaslight', 'stackable' : False, 'short_description' : 'A flaslight'},
+    ItemCodes.RADIO : {'name' : 'Radio', 'description' : 'A radio', 'stackable' : False, 'short_description' : 'A radio'},
+    
+    ItemCodes.EMPTY_FLASHLIGHT : {'name' : 'Empty Flashlight', 'description' : 'A flashlight with no batteries', 
+                                        'stackable' : False, 'short_description' : 'A flashlight with no batteries'}
 }
 
 
 class Game:
     def __init__(self):
-        self.global_state : dict[str, AnyJson] = {'Cash' : 1, 'KeyItems' : []}
+        self.global_state : dict[str, AnyJson] = {'Cash' : 0, 'KeyItems' : []}
         self.inventory : list[AnyInvSlotData] = []
         self.has_visited : dict[int, int] = defaultdict(lambda : 0)
         self.room_state : dict[int, dict] = {}
@@ -111,7 +114,7 @@ class Game:
         self.temp_data : dict[str, AnyJson] = {}
 
     def reset(self):
-        self.global_state = {'Cash' : 1, 'KeyItems' : []}
+        self.global_state = {'Cash' : 0, 'KeyItems' : []}
         self.inventory = []
         self.has_visited = defaultdict(lambda : 0)
         self.room_state = {}
@@ -139,6 +142,9 @@ class Game:
                 data : dict = json.load(file)
         except FileNotFoundError:
             print(f'{file_path} not found')
+            return False
+        except json.JSONDecodeError:
+            print('File is empty/is corrupted/is not a json file!')
             return False
 
         is_filled : bool|int|None = data.get('is_filled', None)
@@ -218,11 +224,18 @@ class Game:
             return
         for item_slot in self.inventory:
             item_count = item_slot.get('amount', 1)
-            item_code : ItemCode = item_slot['code']
-            item_name : str = item_data[item_code]['name']
-            item_desc : str = item_data[item_code]['description']
             if item_count <= 0: continue
-            print(f'{item_name} ({item_count}) - {item_desc}' if item_slot['stackable'] else f'{item_name} - {item_desc}')
+            print(self.format_inventory_slot(item_slot))
+    
+    def format_inventory_slot(self, slot : AnyInvSlotData) -> str|None:
+        item_count = slot.get('amount', 1)
+        if item_count <= 0: return None
+        item_code : ItemCode = slot['code']
+        item_name : str = ITEM_DATA[item_code]['name']
+        item_desc : str = ITEM_DATA[item_code]['description']
+        if slot['stackable']:
+            return f'{item_name} ({item_count}) - {item_desc}'
+        return f'{item_name} - {item_desc}'
 
     def find_inventory_item(self, item_code : ItemCode) -> AnyInvSlotData|None:
         for item_slot in self.inventory:
@@ -239,7 +252,7 @@ class Game:
         return True if self.find_inventory_item(item_code) else False
 
     def add_item_to_inventory(self, item_code : ItemCode, amount : int = 1):
-        if not item_data[item_code]['stackable']:
+        if not ITEM_DATA[item_code]['stackable']:
             return self._add_unstackable_item(item_code, amount)
         current_slot : MultipleSlotData|None = self.find_inventory_item(item_code)
         if current_slot is None:
@@ -348,60 +361,32 @@ class Room:
         game.room_number = self.room_number
         return options
 
-    def enter_room_2(self):
-        if game.has_visited[2] <= 1:
-            game.room_state[2] = {'items_left' : [ItemCodes.BAT.value, ItemCodes.FLASHLIGHT.value,
-                                                ItemCodes.RADIO.value]}
-
-        if len(game.room_state[2]['items_left']) == 0:
-            print("You encountered a shop. Unfortunately, there's nothing left to buy. I wonder why...")
-
-        elif game.global_state['Cash'] > 0:
-            self.enter_default()
-        else:
-            print('''You encountered a mysterious shop with no one there. They have a few items on sale.
-Unfortunately, you dont't have any money left. What do you do?''')
-
     def manage_room_2(self):
-
-        item_count = len(game.room_state[2]['items_left'])
-        if item_count == 0:
-            stall()
-            return 1
-
-        elif game.global_state['Cash'] > 0:
-            print('''1-Buy an item\n2-Steal something\n3-Save your money and go back''')
-            choice = get_int_choice(3)
-            option_chosen = ['buy', 'steal', 'save'][choice - 1]
-        else:
-            print('1-Steal something\n2-Go back')
-            choice = get_int_choice(2)
-            option_chosen = ['steal', 'save'][choice - 1]
-
-        if option_chosen == 'save':
-            return 1
-
-        item_description_dict = {'bat' : 'A wooden bat', 'flashlight' : 'A flaslight', 'radio' : 'A radio'}
-
-        prompt_text = 'What do you buy?' if option_chosen == 'buy' else 'What do you steal?'
-
-        print(prompt_text)
+        item_codes = [ItemCodes.BAT, ItemCodes.FLASHLIGHT, ItemCodes.RADIO]
+        item_description_dict = {code : ITEM_DATA[code]['short_description'] for code in item_codes}
         option_dict : dict[int, ItemCode] = {}
-        for i, item in enumerate(game.room_state[2]['items_left']):
-            print(f'{i + 1}-{item_description_dict[item]}')
-            option_dict[i + 1] = item
-        choice = get_int_choice(item_count)
-        item_to_get = option_dict[choice]
-        game.room_state[2]['items_left'].remove(item_to_get)
-        game.add_item_to_inventory(item_to_get)
-        if option_chosen == 'buy':
-            print('You grabbed the item and left the correct amount of money on the counter.')
-            game.global_state['Cash'] -= 1
+        print('')
+        for i, item_code in enumerate(item_codes):
+            print(f'{i + 1}-{item_description_dict[item_code]}')
+            option_dict[i + 1] = item_code
+        option_dict[4] = 'Nothing'
+        option_dict[5] = 'All of them'
+        print('4-Nothing\n5-All of them')
+
+        choice = get_int_choice(5)
+        if choice == 4:
+            print('You decided not to get anything.')
+        elif choice == 5:
+            print('you get nothing you greedy mf')
         else:
-            print('You snuck up to the stand, made sure no one was looking... And grabbed the item with seemingly no one noticing you.')
-            print("Let's hope this dosen't backfire...")
+            item_to_get = option_dict[choice]
+            game.add_item_to_inventory(item_to_get)
+            insertion_name = {ItemCodes.BAT : 'bat', ItemCodes.FLASHLIGHT : 'flashlight', ItemCodes.RADIO : 'radio'}[item_to_get]
+            print('As soon as you reach for the item of your choosing, the small stand suddenly lowers into the ground.')
+            stall('')
+            print(f'In the blink of an eye, it disappears from the road, with the {insertion_name} in your hands being the only remaining trace of its existence.')
         stall()
-        return 1
+        return 3
 
     def enter_room_13(self):
         if 'Floor1Key1' not in game.global_state['KeyItems']:
@@ -497,17 +482,15 @@ room_data : dict[int, RoomType] = {
 
     1 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You encountered a crossing. What do you do?''',
-'second_arrival_text' : '''You are back at the crossroads. What now?''',
-'options' : {'Go left' : 2, 'Go right' : 3},
+'entry_text' : '''You encountered a crossing. You keep walking(placeholder).''',
+'options' : 2,
 },
 
     2 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You encountered a mysterious shop. They have a few items on sale.
-You don't have much money, so you can only buy one of them.
-What do you do?''',
-'options' : {'Go back' : 1},
+'entry_text' : '''You encountered a mysterious stand. They have a few items on display, and a sign that reads: "Take one item!"
+What do you take?''',
+'options' : 3,
 },
 
     3 : {
@@ -712,7 +695,7 @@ You use the newfound light to lighten up the path ahead.''',
 ending_data : dict[str, EndingInfo] = {
 'BADA1' : {
 'ending_name' : 'Bad Ending: Tumble',
-'ending_text' : '''That wasn't very bright... What did you think was going to happen!''',
+'ending_text' : '''That wasn't very bright...''',
 'retryable' : True,
 'retry_checkpoint' : 'Act1Start'
 }
