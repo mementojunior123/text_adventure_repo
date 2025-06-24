@@ -386,7 +386,7 @@ class Room:
             stall('')
             print(f'In the blink of an eye, it disappears from the road, with the {insertion_name} in your hands being the only remaining trace of its existence.')
         stall()
-        return 3
+        return self.data['options']
 
     def enter_room_13(self):
         if 'Floor1Key1' not in game.global_state['KeyItems']:
@@ -476,33 +476,45 @@ The score is 2-0 now.''')
 room_data : dict[int, RoomType] = {
     0 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''---------ACT 0 - Prologue---------''',
+'entry_text' : '''---------CHAPTER 0 - Prologue---------''',
 'options' : 1,
 },
 
     1 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You encountered a crossing. You keep walking(placeholder).''',
-'options' : 2,
+'entry_text' : [
+'''It's a nice summer day.''',
+'''The sky is a clear blue, and the temperature is just perfect... 
+It's the kind of weather that makes you feel like nothing could go wrong.''',
+'''That's why you decided to go on a walk around the block.''',
+'''While you're walking, something catches your attention.''',
+'''You see a large decrepit mansion near you.''',
+'''While you've never exactly been an explorer, it manages to spike your interest.''',
+'''Although it's a bit creepy, you can't help but wonder what's in there.
+It's not like anyone lives there anymore...'''
+],
+'options' : {'Continue your walk' : 4, 'Investigate the mansion' : 3},
 },
 
     2 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You encountered a mysterious stand. They have a few items on display, and a sign that reads: "Take one item!"
+'entry_text' : '''Right before arriving at the mansion, you encountered a mysterious stand. 
+They have a few items on display, and a sign that reads: "Take one item!"
 What do you take?''',
-'options' : 3,
+'options' : 8,
 },
 
     3 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''There's an abandoned mansion up ahead. Should you investigate?''',
-'options' : {'Investigate' : 7,  '''Don't investigate''' : 4},
+'entry_text' : '''You decided to investigate the mansion. Will you regret this choice? Only time will tell...''',
+'options' : 2,
 },
 
     4 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Are you sure? You might miss out on the entire game...''',
-'options' : {'Yes' : 5, 'No' : 6}
+'entry_text' : '''You decided to keep walking. 
+There's no way you were going to ruin your day by going to that creepy house...''',
+'options' : 'ENDING AVOID_DANGER'
 },
 
     5 : {
@@ -552,7 +564,7 @@ Besides, you don't exactly want to draw attention to what you are doing.''',
     11 : {
 'type' : RoomType.STANDARD,
 'entry_text' : '''You looked around the house for a way in.
-While the front door was well maintained, the backdoor had already fallen off on its own.
+While the front door worked properly, the backdoor had already fallen off on its own.
 You made your way to the house's living room.''',
 'options' : 12
 },
@@ -560,7 +572,7 @@ You made your way to the house's living room.''',
     12 : {
 'type' : RoomType.STANDARD,
 'entry_text' : 'The mansion is huge, and there are quite a few things worth taking a look at. Where do you go?',
-'second_arrival_text' : '''What do you investigate?''',
+'second_arrival_text' : '''What now?''',
 'options' : {'The 1st floor' : 14, 'The ground floor' : 13, 'The basement' : 15},
 },
 
@@ -630,7 +642,7 @@ While this seems like a very bad idea... It looks like the only way out.''',
 
     21 : {
 'type' : RoomType.STANDARD,
-'entry_text' :  '''---------ACT 1 - Into the dark---------''',
+'entry_text' :  '''---------CHAPTER 1 - Into the dark---------''',
 'options' : 26
 },
 
@@ -638,7 +650,7 @@ While this seems like a very bad idea... It looks like the only way out.''',
 'type' : RoomType.CHECKPOINT,
 'entry_text' : 'New checkpoint!',
 'options' : 22,
-'extra_info' : {'checkpoint_name' : 'Act1Start'}
+'extra_info' : {'checkpoint_name' : 'Chapter1Start'}
 },
 
     22 : {
@@ -667,7 +679,7 @@ You use the newfound light to lighten up the path ahead.''',
     '''Unfortunately for you, you step on a crack that was concealed in the darkness...''',
     '''And you tumble all the way down the stairs.'''
 ],
-'options' : 'ENDING BADA1',
+'options' : 'ENDING TUMBLE',
 },
 
     25 : {
@@ -693,11 +705,17 @@ You use the newfound light to lighten up the path ahead.''',
 }
 
 ending_data : dict[str, EndingInfo] = {
-'BADA1' : {
+'Tumble' : {
 'ending_name' : 'Bad Ending: Tumble',
 'ending_text' : '''That wasn't very bright...''',
 'retryable' : True,
-'retry_checkpoint' : 'Act1Start'
+'retry_checkpoint' : 'Chapter1Start'
+},
+'AVOID_DANGER' : {
+'ending_name' : 'Good Ending: Smart decisions',
+'ending_text' : 'You managed to stay out of trouble. Good job.',
+'retryable' : False,
+'retry_checkpoint' : None
 }
 }
 
