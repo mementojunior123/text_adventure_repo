@@ -16,6 +16,12 @@ class ItemCodes(Enum):
     EMPTY_FLASHLIGHT = 'empty_flashlight'
     RADIO = 'radio'
 
+    @property
+    def value(self) -> ItemCode:
+        return super().value
+
+AnyItemCode : TypeAlias = ItemCode|ItemCodes
+
 #static data-- kinda like RoomInfo and EndingInfo
 #This never changes
 class ItemInfo(TypedDict):
@@ -43,8 +49,7 @@ def clear_console(method : int = 1):
     if method == 1:
         print("\033c", end="")
     elif method == 2:
-        x = 3
-        print(f"\033[H\033[{x}J", end="")
+        print(f"\033[H\033[3J", end="")
     elif method == 3:
         print("\n" * 50)
     else:
@@ -93,11 +98,11 @@ class EndingInfo(TypedDict):
     retry_checkpoint : str
 
 ITEM_DATA : dict[ItemCode, ItemInfo] = {
-    ItemCodes.BAT : {'name' : 'Wooden Bat', 'description' : 'A wooden bat', 'stackable' : False, 'short_description' : 'A wooden bat'},
-    ItemCodes.FLASHLIGHT : {'name' : 'Flashlight', 'description' : 'A flaslight', 'stackable' : False, 'short_description' : 'A flaslight'},
-    ItemCodes.RADIO : {'name' : 'Radio', 'description' : 'A radio', 'stackable' : False, 'short_description' : 'A radio'},
+    ItemCodes.BAT.value : {'name' : 'Wooden Bat', 'description' : 'A wooden bat', 'stackable' : False, 'short_description' : 'A wooden bat'},
+    ItemCodes.FLASHLIGHT.value : {'name' : 'Flashlight', 'description' : 'A flaslight', 'stackable' : False, 'short_description' : 'A flaslight'},
+    ItemCodes.RADIO.value : {'name' : 'Radio', 'description' : 'A radio', 'stackable' : False, 'short_description' : 'A radio'},
     
-    ItemCodes.EMPTY_FLASHLIGHT : {'name' : 'Empty Flashlight', 'description' : 'A flashlight with no batteries', 
+    ItemCodes.EMPTY_FLASHLIGHT.value : {'name' : 'Empty Flashlight', 'description' : 'A flashlight with no batteries', 
                                         'stackable' : False, 'short_description' : 'A flashlight with no batteries'}
 }
 
@@ -237,21 +242,25 @@ class Game:
             return f'{item_name} ({item_count}) - {item_desc}'
         return f'{item_name} - {item_desc}'
 
-    def find_inventory_item(self, item_code : ItemCode) -> AnyInvSlotData|None:
+    def find_inventory_item(self, item_code : AnyItemCode) -> AnyInvSlotData|None:
+        if isinstance(item_code, ItemCodes): item_code = item_code.value
         for item_slot in self.inventory:
             if item_slot['code'] == item_code: return item_slot
         return None
 
-    def find_all_inventory_items(self, item_code : ItemCode) -> list[AnyInvSlotData]:
+    def find_all_inventory_items(self, item_code : AnyItemCode) -> list[AnyInvSlotData]:
+        if isinstance(item_code, ItemCodes): item_code = item_code.value
         return_value : list[AnyInvSlotData] = []
         for item_slot in self.inventory:
             if item_slot['code'] == item_code: return_value.append(item_slot)
         return return_value
 
-    def item_in_inventory(self, item_code : ItemCode) -> bool:
+    def item_in_inventory(self, item_code : AnyItemCode) -> bool:
+        if isinstance(item_code, ItemCodes): item_code = item_code.value
         return True if self.find_inventory_item(item_code) else False
 
-    def add_item_to_inventory(self, item_code : ItemCode, amount : int = 1):
+    def add_item_to_inventory(self, item_code : AnyItemCode, amount : int = 1):
+        if isinstance(item_code, ItemCodes): item_code = item_code.value
         if not ITEM_DATA[item_code]['stackable']:
             return self._add_unstackable_item(item_code, amount)
         current_slot : MultipleSlotData|None = self.find_inventory_item(item_code)
@@ -262,12 +271,14 @@ class Game:
         else:
             current_slot['amount'] += amount
 
-    def _add_unstackable_item(self, item_code : ItemCode, amount : int = 1):
+    def _add_unstackable_item(self, item_code : AnyItemCode, amount : int = 1):
+        if isinstance(item_code, ItemCodes): item_code = item_code.value
         for _ in range(amount):
             new_slot : SingletonSlotData = {'code' : item_code, 'stackable' : False, 'state' : {}}
             self.inventory.append(new_slot)
 
-    def add_modified_item_to_inventory(self, item_code : ItemCode, state : dict[str, AnyJson], amount : int = 1):
+    def add_modified_item_to_inventory(self, item_code : AnyItemCode, state : dict[str, AnyJson], amount : int = 1):
+        if isinstance(item_code, ItemCodes): item_code = item_code.value
         for _ in range(amount):
             new_slot : SingletonSlotData = {'code' : item_code, 'stackable' : False, 'state' : state}
             self.inventory.append(new_slot)
@@ -362,29 +373,30 @@ class Room:
         return options
 
     def manage_room_2(self):
-        item_codes = [ItemCodes.BAT, ItemCodes.FLASHLIGHT, ItemCodes.RADIO]
-        item_description_dict = {code : ITEM_DATA[code]['short_description'] for code in item_codes}
+        item_codes = [ItemCodes.BAT, ItemCodes.FLASHLIGHT]
+        item_description_dict = {code : ITEM_DATA[code.value]['short_description'] for code in item_codes}
         option_dict : dict[int, ItemCode] = {}
         print('')
         for i, item_code in enumerate(item_codes):
             print(f'{i + 1}-{item_description_dict[item_code]}')
             option_dict[i + 1] = item_code
-        option_dict[4] = 'Nothing'
-        option_dict[5] = 'All of them'
-        print('4-Nothing\n5-All of them')
+        option_dict[3] = 'Nothing'
+        option_dict[4] = 'All of them'
+        print('3-Nothing\n4-Both of them')
 
-        choice = get_int_choice(5)
-        if choice == 4:
+        choice = get_int_choice(4)
+        if choice == 3:
             print('You decided not to get anything.')
-        elif choice == 5:
-            print('you get nothing you greedy mf')
+        elif choice == 4:
+            print('You picked up the bat and the flashlight.')
+            game.add_item_to_inventory(ItemCodes.BAT)
+            game.add_item_to_inventory(ItemCodes.FLASHLIGHT)
         else:
             item_to_get = option_dict[choice]
             game.add_item_to_inventory(item_to_get)
-            insertion_name = {ItemCodes.BAT : 'bat', ItemCodes.FLASHLIGHT : 'flashlight', ItemCodes.RADIO : 'radio'}[item_to_get]
-            print('As soon as you reach for the item of your choosing, the small stand suddenly lowers into the ground.')
-            stall('')
-            print(f'In the blink of an eye, it disappears from the road, with the {insertion_name} in your hands being the only remaining trace of its existence.')
+            insertion_name = {ItemCodes.BAT : 'bat', ItemCodes.FLASHLIGHT : 'flashlight'}[item_to_get]
+            print(f"You decided to pick the {insertion_name}. You hope that it's going to be useful.")
+    
         stall()
         return self.data['options']
 
@@ -436,7 +448,7 @@ class Room:
             print(self.data['second_arrival_text'])
             return
 
-        if game.find_inventory_item(ItemCodes.RADIO.value):
+        if game.find_inventory_item(ItemCodes.RADIO):
             print('''You tried using the radio you got earlier to get help.\nNo one picked up...''')
         else:
             print(self.data['entry_text'])
@@ -447,7 +459,7 @@ class Room:
             return
 
         did_fight_door = game.has_visited[9]
-        if game.find_inventory_item(ItemCodes.BAT.value):
+        if game.find_inventory_item(ItemCodes.BAT):
             if did_fight_door:
                 print('''With a bat by your side, you can surely force this door open, right?
 ...
@@ -462,7 +474,7 @@ The score is 2-0 now.''')
 
     def manage_room_22(self):
         options : dict[str, int] = {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24}
-        if game.find_inventory_item(ItemCodes.FLASHLIGHT.value):
+        if game.find_inventory_item(ItemCodes.FLASHLIGHT):
             options['Use your flashlight to light up the path'] = 25
         option_dict : dict[int, str] = {}
         for i, option in enumerate(options):
@@ -484,14 +496,14 @@ room_data : dict[int, RoomType] = {
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''It's a nice summer day.''',
-'''The sky is a clear blue, and the temperature is just perfect... 
-It's the kind of weather that makes you feel like nothing could go wrong.''',
+'''The sky is a clear blue, and the temperature is just perfect...''',
+'''It's the kind of weather that makes you feel like nothing could go wrong.''',
 '''That's why you decided to go on a walk around the block.''',
 '''While you're walking, something catches your attention.''',
 '''You see a large decrepit mansion near you.''',
 '''While you've never exactly been an explorer, it manages to spike your interest.''',
-'''Although it's a bit creepy, you can't help but wonder what's in there.
-It's not like anyone lives there anymore...'''
+'''Although it's a bit creepy, you can't help but wonder what's in there.''',
+'''It's not like anyone lives there anymore...'''
 ],
 'options' : {'Continue your walk' : 4, 'Investigate the mansion' : 3},
 },
@@ -512,8 +524,12 @@ What do you take?''',
 
     4 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You decided to keep walking. 
-There's no way you were going to ruin your day by going to that creepy house...''',
+'entry_text' : [
+'''You decided walk past it.''',
+'''There's no way you were going to ruin your day by going to that creepy house...''',
+'''...''',
+'''You feel like you just forgot something important.'''
+],
 'options' : 'ENDING AVOID_DANGER'
 },
 
@@ -537,7 +553,13 @@ There's no way you were going to ruin your day by going to that creepy house...'
 
     8 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You arrived at the mansion. You walk up to the front door and try to open it. However, it's locked. What do you do?''',
+'entry_text' : [
+'''You arrived at the mansion.''',
+'''*Insert lengthy description here*''',
+'''You slowly walk up to the front door and try to open it.''',
+'''*SFX*'''
+'''It's locked. What do you do?''',
+],
 'second_arrival_text' : 'You think about another way to get into the mansion.',
 'options' : {'Force the door open' : 9, 'Break a window' : 10, 'Try to find a way around' : 11},
 },
@@ -713,7 +735,7 @@ ending_data : dict[str, EndingInfo] = {
 },
 'AVOID_DANGER' : {
 'ending_name' : 'Good Ending: Smart decisions',
-'ending_text' : 'You managed to stay out of trouble. Good job.',
+'ending_text' : 'You managed to stay out of trouble.',
 'retryable' : False,
 'retry_checkpoint' : None
 }
@@ -944,8 +966,8 @@ def main():
             ending_info = ending_data[ending_code]
             ending_text = ending_info['ending_text']
             ending_name = ending_info['ending_name']
-            print(ending_text)
             print(ending_name)
+            print(ending_text)
             if ending_info['retryable']:
                 stall()
                 response : str = input('Input "quit" to exit the game. Input anything else to go back to a checkpoint and retry.\n').lower()
