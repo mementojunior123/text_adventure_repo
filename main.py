@@ -22,8 +22,7 @@ class ItemCodes(Enum):
 
 AnyItemCode : TypeAlias = ItemCode|ItemCodes
 
-#static data-- kinda like RoomInfo and EndingInfo
-#This never changes
+
 class ItemInfo(TypedDict):
     name : str
     description : str
@@ -54,6 +53,69 @@ def clear_console(method : int = 1):
         print("\n" * 50)
     else:
         os.system('cls' if os.name == 'nt' else 'clear')
+
+class TextFormatTags(Enum):
+    NOTHING = 0
+    BOLD = 1 #vscode only
+    ITALIC = 3
+    UNDERLINE = 4
+    FLASHING = 5 #not in vscode
+    NEGATIVE = 7
+    STRIKETRHOUGH = 9
+    DOUBLE_UNDERLINE = 21 #not in vscode
+
+class TextColorTags(Enum):
+    BLACK = 30
+    DARK_RED = 31
+    DARK_GREEN = 32
+    DARK_YELLOW = 33
+    DARK_BLUE = 34
+    DARK_MAGENTA = 35
+    DARK_CYAN = 36
+    DARK_WHITE = 37
+
+    BRIGHT_BLACK = 90 #grey
+    BRIGHT_RED = 91
+    BRIGHT_GREEN = 92
+    BRIGHT_YELLOW = 93
+    BRIGHT_BLUE = 94
+    BRIGHT_MAGENTA = 95
+    BRIGHT_CYAN = 96
+    BRIGHT_WHITE = 97
+
+class TextBGColorTags(Enum):
+    BLACK = 40
+    DARK_RED = 41
+    DARK_GREEN = 42
+    DARK_YELLOW = 43
+    DARK_BLUE = 44
+    DARK_MAGENTA = 45
+    DARK_CYAN = 46
+    DARK_WHITE = 47
+
+    BRIGHT_BLACK = 100 #grey
+    BRIGHT_RED = 101
+    BRIGHT_GREEN = 102
+    BRIGHT_YELLOW = 103
+    BRIGHT_BLUE = 104
+    BRIGHT_MAGENTA = 105
+    BRIGHT_CYAN = 106
+    BRIGHT_WHITE = 107
+
+AnyTextTag : TypeAlias = TextFormatTags|TextColorTags|TextBGColorTags
+
+class TextFormatter:
+    def __init__(self):
+        pass
+
+    def format(self, text : str, *args : AnyTextTag) -> str:
+        start_part = ''.join([f"\033[{tag.value}m" for tag in args])
+        end_part : str = f"{text}\033[0m"
+        return start_part + end_part
+        
+TF = TextFormatter()
+
+
 
 class GameState(TypedDict):
     '''global_state : dict[str, AnyJson]
@@ -535,14 +597,19 @@ What do you take?''',
 
     5 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Unfortunately for you, you don't really have a choice.''',
-'options' : 6
+'entry_text' : 'You think about another way to get into the mansion.',
+'options' : {'Force the door open' : 9, 'Break a window' : 10, 'Try to find a way around' : 11},
 },
 
     6 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Despite your initial hesitations, you decided to investigate. Will you regret this choice? Only time will tell...''',
-'options' : 8
+'entry_text' : [
+f'''You decided that {TF.format('maybe', TextFormatTags.ITALIC)} breaking into an unhabited house isn't a very good use of your time.''',
+'''You turn around and decide to go on with your day.''',
+'''...''',
+f'''You feel like you just forgot something {TF.format('important', TextColorTags.DARK_RED)}.'''
+],
+'options' : 'ENDING AVOID_DANGER'
 },
 
     7 : {
@@ -557,11 +624,12 @@ What do you take?''',
 '''You arrived at the mansion.''',
 '''*Insert lengthy description here*''',
 '''You slowly walk up to the front door and try to open it.''',
-'''*SFX*'''
+'''*click*''',
+'''*click* *click*''',
 '''It's locked. What do you do?''',
 ],
 'second_arrival_text' : 'You think about another way to get into the mansion.',
-'options' : {'Force the door open' : 9, 'Break a window' : 10, 'Try to find a way around' : 11},
+'options' : {'Force the door open' : 9, 'Break a window' : 10, 'Try to find a way around' : 11, 'Stop trying to break in' : 6},
 },
 
     9 : {
@@ -571,7 +639,7 @@ Not one to give up so quickly, you start fighting with the door.
 ...
 The door won.''',
 'second_arrival_text' : '''You have a feeling this won't be very productive.''',
-'options' : 8
+'options' : 5
 },
 
     10 : {
@@ -580,7 +648,7 @@ The door won.''',
 Unfortunatively for you, it's way too small for you to fit in.
 Besides, you don't exactly want to draw attention to what you are doing.''',
 'second_arrival_text' : '''This can't be the right way. Breaking the window would be way too loud...''',
-'options' : 8
+'options' : 5
 },
 
     11 : {
