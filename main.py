@@ -115,6 +115,8 @@ class TextFormatter:
         
 TF = TextFormatter()
 
+def italic(text : str):
+    return TF.format(text, TextFormatTags.ITALIC)
 
 
 class GameState(TypedDict):
@@ -604,10 +606,10 @@ What do you take?''',
     6 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-f'''You decided that {TF.format('maybe', TextFormatTags.ITALIC)} breaking into an unhabited house isn't a very good use of your time.''',
+f'''You decided that {italic('maybe')} breaking into an unhabited house isn't a very good use of your time.''',
 '''You turn around and decide to go on with your day.''',
 '''...''',
-f'''You feel like you just forgot something {TF.format('important', TextColorTags.DARK_RED)}.'''
+f'''You feel like you just forgot something {TF.format('important', TextColorTags.BRIGHT_RED)}.'''
 ],
 'options' : 'ENDING AVOID_DANGER'
 },
@@ -644,10 +646,12 @@ The door won.''',
 
     10 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You look around for a window to break and find one.
-Unfortunatively for you, it's way too small for you to fit in.
-Besides, you don't exactly want to draw attention to what you are doing.''',
-'second_arrival_text' : '''This can't be the right way. Breaking the window would be way too loud...''',
+'entry_text' : [
+'''You look around for a window to break and find one.''',
+f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
+'''Besides, breaking a window isn't exactly a great idea.''',
+],
+'second_arrival_text' : '''Cant break a window if there's no window...''',
 'options' : 5
 },
 
