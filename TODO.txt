@@ -1,4 +1,5 @@
 -------ASAP-------
 -------High-------
+-Revamp the manor search section with sub-rooms and lore
 ------Medium------
 -----Secondary----
