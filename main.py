@@ -6,7 +6,7 @@ import os
 from typing import Callable, Any, TypedDict, Union, TypeAlias, Literal
 from enum import Enum
 
-SAVE_VERSION = 6
+SAVE_VERSION = 7
 
 AnyJson : TypeAlias = Union[str, int, float, bool, None, dict[str, 'AnyJson'], list['AnyJson']]
 ItemCode : TypeAlias = str
@@ -54,6 +54,7 @@ class KeyItemCodes(Enum):
     def value(self) -> KeyItemCode:
         return super().value
 
+AnyKeyItemCode : TypeAlias = Union[KeyItemCodes, KeyItemCode]
 
 KeyItemNames : dict[KeyItemCode, str] = {
     KeyItemCodes.MANOR_BASEMENT_KEY.value : 'Basement Key',
@@ -281,6 +282,7 @@ class RoomType(Enum):
 class OptionalRoomInfo(TypedDict, total=False):
     second_arrival_text : str
     extra_info : dict[str, Any]
+    key_item_drop : KeyItemCode
 
 class RoomInfo(OptionalRoomInfo):
     entry_text : str
@@ -516,8 +518,13 @@ class Room:
     def default_manage(self) -> str|int:
         if self.data['type'] == RoomType.CHECKPOINT:
             return self._manage_checkpoint()
+        if self.data.get('key_item_drop', None):
+            drop : KeyItemCode|KeyItemCodes = self.data['key_item_drop']
+            if isinstance(drop, KeyItemCodes): drop = drop.value
+            if drop not in game.key_items: game.key_items.append(drop)
         options = self.data['options']
         if type(options) == str:
+            if options == 'END': stall()
             return options
         elif type(options) == int:
             stall()
@@ -611,6 +618,8 @@ class Room:
         result = options[option_dict[choice]]
         if result == 20:
             result = 20_001 if KeyItemCodes.MANOR_FLOOR1_KEY.value in game.key_items else 20
+        elif result == 29:
+            result = 29_001 if KeyItemCodes.MANOR_BASEMENT_KEY.value in game.key_items else 29
         return result
     
     def enter_room_20001(self):
@@ -652,20 +661,7 @@ The score is 2-0 now.''')
             else:
                 print(self.data['entry_text'])
 
-    def manage_room_22(self):
-        options : dict[str, int] = {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24}
-        if game.find_inventory_item(ItemCodes.FLASHLIGHT):
-            options['Use your flashlight to light up the path'] = 25
-        option_dict : dict[int, str] = {}
-        for i, option in enumerate(options):
-            print(f'{i+1}-{option}')
-            option_dict[i + 1] = option
-        choice = get_int_choice(len(options))
-        print('')
-        result = options[option_dict[choice]]
-        return result
-
-room_data : dict[int, RoomType] = {
+room_data : dict[int, RoomInfo] = {
     0 : {
 'type' : RoomType.STANDARD,
 'entry_text' : '''---------CHAPTER 0 - Prologue---------''',
@@ -788,7 +784,7 @@ You made your way into the house.''',
 11_002 : {
 'type' : RoomType.CHECKPOINT,
 'entry_text' : 'New checkpoint!',
-'options' : 'END',
+'options' : 12,
 'extra_info' : {'checkpoint_name' : 'Chapter1Start'}
 },
 
@@ -798,6 +794,49 @@ You made your way into the house.''',
 'second_arrival_text' : '''What now?''',
 'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, 'The washing room' : 16, 
              'The entry' : 17, 'The front door' : 18, 'The first floor' : 20, 'The basement door' : 29},
+},
+
+13 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 12,
+},
+
+14 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 12,
+},
+
+15 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 12,
+},
+
+16 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Floor 1 key obtained!''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 12,
+'key_item_drop' : KeyItemCodes.MANOR_FLOOR1_KEY.value
+},
+
+17 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 12,
+},
+
+18 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 12,
 },
 
     20 : {
@@ -831,12 +870,76 @@ You made your way into the house.''',
              'The bathroom' : 26, 'A closet' : 27, 'The hallway' : 28, 'Downstairs' : 20_002},
 },
 
+22 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 21,
+},
+
+23 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 21,
+},
+
+24 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 21,
+},
+
+25 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 21,
+},
+
+26 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 21,
+},
+
+27 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Basement key obtained!''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 21,
+'key_item_drop' : KeyItemCodes.MANOR_BASEMENT_KEY.value
+},
+
+28 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''Nothing here.''',
+'second_arrival_text' : '''Nothing here.''',
+'options' : 21,
+},
+
     29 : {
 'type' : RoomType.STANDARD,
 'entry_text' : '''It's locked.''',
 'second_arrival_text' : '''It's still locked.''',
 'options' : 12,
 },
+
+    29_001 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You think about using the key. You hesitate.''',
+'second_arrival_text' : '''You think about using the key.''',
+'options' : 30,
+},
+
+30 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You actually open the door.''',
+'options' : 31,
+},
+
 
     31 : {
 'type' : RoomType.STANDARD,
