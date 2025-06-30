@@ -6,7 +6,7 @@ import os
 from typing import Callable, Any, TypedDict, Union, TypeAlias, Literal
 from enum import Enum
 
-SAVE_VERSION = 5
+SAVE_VERSION = 6
 
 AnyJson : TypeAlias = Union[str, int, float, bool, None, dict[str, 'AnyJson'], list['AnyJson']]
 ItemCode : TypeAlias = str
@@ -44,6 +44,22 @@ class MultipleSlotData(BaseInventorySlotData):
 
 AnyInvSlotData : TypeAlias = Union[SingletonSlotData, MultipleSlotData]
 
+KeyItemCode : TypeAlias = str
+
+class KeyItemCodes(Enum):
+    MANOR_BASEMENT_KEY = 'ManorBasementKey1'
+    MANOR_FLOOR1_KEY = 'ManorFloor1Key'
+
+    @property
+    def value(self) -> KeyItemCode:
+        return super().value
+
+
+KeyItemNames : dict[KeyItemCode, str] = {
+    KeyItemCodes.MANOR_BASEMENT_KEY.value : 'Basement Key',
+    KeyItemCodes.MANOR_FLOOR1_KEY.value : 'Floor 1 Key'
+}
+
 def clear_console(method : int = 1):
     if method == 1:
         print("\033c", end="")
@@ -53,6 +69,121 @@ def clear_console(method : int = 1):
         print("\n" * 50)
     else:
         os.system('cls' if os.name == 'nt' else 'clear')
+
+def get_int_choice(option_count : int) -> int:
+    valid = [str(i + 1) for i in range(option_count)]
+    while True:
+        result = input('Selection : ')
+        if result in valid:
+            return int(result)
+        elif result == "cmd":
+            enter_command()
+
+        elif len(result) == 0:
+            print(f'Invalid. Number must range from 1 to {option_count}. To see run a command, type "cmd" or prefix it with "/".')
+        elif result[0] == '/':
+            parse_command(result)
+        else:
+            print(f'Invalid. Number must range from 1 to {option_count}. To see run a command, type "cmd" or prefix it with "/".')
+
+def enter_command():
+    parse_command(input("Command : "))
+
+def parse_command(message : str):
+    if message[0] == '/':
+        message = message[1:]
+    command = message
+    result = is_valid_command(command)
+    if result == False:
+        print(f'"{command}" is not a recognized command. To see a list of all commands, use help.')
+        return False
+    elif result == True:
+        process_command(command)
+        return True
+    elif type(result) == str:
+        print(result)
+        return False
+    else:
+        print('Something went wrong. Please try again.')
+
+command_list = ['stop', 'exit', 'quit', 'exit', 'help', 'check']
+
+def is_valid_command(message : str):
+    message = message.lower()
+    words = message.split()
+    command = words[0]
+    args = words[1:]
+    arg_count = len(args)
+    default_error = f'Command was formatted incorrectly. To see how to format the command, use "help {command}"'
+    match command:
+        case 'stop'|'end'|'quit'|'exit':
+            return True
+        case 'check':
+            if arg_count == 0:
+                return default_error
+            thing_to_check = args[0]
+            match thing_to_check:
+                case 'inventory':
+                    return True
+                case _:
+                    return f'"check {thing_to_check}" isnt valid. To see how to format the command, use "help {command}"'
+
+        case 'help':
+            if arg_count == 0:
+                return True
+            command_to_help = args[0]
+            if command_to_help not in command_list:
+                return f'{command_to_help} is not a valid command. To see a list of all commands, use "help".'
+            return True
+
+        case _:
+            return False
+
+def process_command(message : str):
+    message = message.lower()
+    words = message.split()
+    command = words[0]
+    args = words[1:]
+    arg_count = len(args)
+    default_error = 'Something went wrong. Please try again.'
+
+    match command:
+        case 'stop'|'end'|'quit'|'exit':
+            print('Are you sure you want to quit? Type "Y" or "yes" if you want to quit.')
+            result = input().lower()
+            if result == 'y' or result == 'yes':
+                sucsess = game.save(f'saves/{current_save_file}.json')
+                if sucsess:
+                    print('Data saved sucessfully!')
+                else:
+                    print('Data failed to save...')
+                game.quit()
+        case 'check':
+            thing_to_check = args[0]
+            match thing_to_check:
+                case 'inventory':
+                    game.print_inventory()
+                case _:
+                    print(default_error)
+        case 'help':
+            if arg_count == 0:
+                print('quit, stop, end, exit - Close the game')
+                print('check - Check something')
+                print('For more detailed help about a command, use "help <command>"')
+                return
+            command_to_help = args[0]
+            match command_to_help:
+                case 'help':
+                    print('For more detailed help about a command, use "help <command>"')
+                case 'stop'|'end'|'quit'|'exit':
+                    print('Use to quit the game.')
+                case 'check':
+                    print('Use check <something> to check something. You can try to check your inventory.')
+        case _:
+            print(default_error)
+
+def stall(stall_text = '(Enter to continue.) -->'):
+    input(stall_text)
 
 class TextFormatTags(Enum):
     NOTHING = 0
@@ -131,6 +262,7 @@ class GameState(TypedDict):
     visited_rooms : dict[int|str, int]
     current_room : int
     temp_data : dict[str, AnyJson]
+    key_items : list[str]
 
 class SaveFile(TypedDict):
     '''current_state : GameState
@@ -173,7 +305,7 @@ ITEM_DATA : dict[ItemCode, ItemInfo] = {
 
 class Game:
     def __init__(self):
-        self.global_state : dict[str, AnyJson] = {'Cash' : 0, 'KeyItems' : []}
+        self.global_state : dict[str, AnyJson] = {'Cash' : 0}
         self.inventory : list[AnyInvSlotData] = []
         self.has_visited : dict[int, int] = defaultdict(lambda : 0)
         self.room_state : dict[int, dict] = {}
@@ -181,9 +313,10 @@ class Game:
         self.checkpoints : dict[str, GameState] = {}
         self.room_number : int = 0
         self.temp_data : dict[str, AnyJson] = {}
+        self.key_items : list[str] = []
 
     def reset(self):
-        self.global_state = {'Cash' : 0, 'KeyItems' : []}
+        self.global_state = {'Cash' : 0}
         self.inventory = []
         self.has_visited = defaultdict(lambda : 0)
         self.room_state = {}
@@ -191,6 +324,7 @@ class Game:
         self.checkpoints = {}
         self.room_number = 0
         self.temp_data = {}
+        self.key_items = []
 
     def save(self, file_path = 'saves/default_save.json'):
         try:
@@ -246,6 +380,7 @@ class Game:
         has_visited = {str(key) : self.has_visited[key] for key in self.has_visited}
         current_state : GameState = {
             'global_state' : self.global_state,
+            'key_items' : self.key_items,
             'room_state' : self.room_state,
             'game_inventory' : self.inventory,
             'visited_rooms' : has_visited,
@@ -271,6 +406,7 @@ class Game:
             self.has_visited[int(key)] = state['visited_rooms'][key]
         self.global_state = state['global_state']
         self.temp_data = state['temp_data']
+        self.key_items = state['key_items']
 
     def make_checkpoint(self, checkpoint_name : str) -> bool:
         self.checkpoints[checkpoint_name] = self._get_game_state()
@@ -464,51 +600,31 @@ class Room:
         stall()
         return self.data['options']
 
-    def enter_room_13(self):
-        if 'Floor1Key1' not in game.global_state['KeyItems']:
-            game.global_state['KeyItems'].append('Floor1Key1')
-        self.enter_default()
-
-    def enter_room_14(self):
-        if 'Floor1Key1' in game.global_state['KeyItems']:
-            if game.has_visited[16] == 0:
-                self.enter_default()
-
-        elif 'BasementKey1' in game.global_state['KeyItems']:
-            print("You try the key you grabbed on the first floor. Unfortunately, it doesn't seem to be the right one.")
-        else:
-            print('Its locked. You need a key to get in there.')
-
-    def manage_room_14(self):
-        if game.has_visited[16] == 0:
-            stall()
-        if 'Floor1Key1' in game.global_state['KeyItems']:
-            return 16
-        else:
-            return 12
-
-    def enter_room_15(self):
-        if 'BasementKey1' in game.global_state['KeyItems']:
+    def manage_room_12(self):
+        options = self.data['options']
+        option_dict : dict[int, str] = {}
+        for i, option in enumerate(options):
+            print(f'{i+1}-{option}')
+            option_dict[i + 1] = option
+        choice = get_int_choice(len(options))
+        print('')
+        result = options[option_dict[choice]]
+        if result == 20:
+            result = 20_001 if KeyItemCodes.MANOR_FLOOR1_KEY.value in game.key_items else 20
+        return result
+    
+    def enter_room_20001(self):
+        if game.has_visited[20] >= 1 or game.has_visited[20_001] >= 1:
             self.enter_default()
-        elif 'Floor1Key1' in game.global_state['KeyItems']:
-            print("You try the key you grabbed on the ground floor. Unfortunately, it doesn't seem to be the right one.")
-        else:
-            print('Its locked. You need a key to get in there.')
+            return
+        print('''You decide to go up the stairs.''', end='')
+        stall('')
+        print('At the top, you notice that the door to the second floor is locked.', end='')
+        stall('')
+        print('Thankfully, you already have the key to unlock the door and you open it.')
 
-    def manage_room_15(self):
-        stall()
-        if 'BasementKey1' in game.global_state['KeyItems']:
-            return 17
-        else:
-            return 12
-
-    def enter_room_16(self):
-        if 'BasementKey1' not in game.global_state['KeyItems']:
-            game.global_state['KeyItems'].append('BasementKey1')
-        self.enter_default()
-
-    def enter_room_18(self):
-        if game.has_visited[18] > 1:
+    def enter_room_32(self):
+        if game.has_visited[32] > 1:
             print(self.data['second_arrival_text'])
             return
 
@@ -517,12 +633,12 @@ class Room:
         else:
             print(self.data['entry_text'])
 
-    def enter_room_19(self):
-        if game.has_visited[19] > 1:
+    def enter_room_33(self):
+        if game.has_visited[33] > 1:
             print(self.data['second_arrival_text'])
             return
 
-        did_fight_door = game.has_visited[9]
+        did_fight_door = False
         if game.find_inventory_item(ItemCodes.BAT):
             if did_fight_door:
                 print('''With a bat by your side, you can surely force this door open, right?
@@ -609,7 +725,7 @@ What do you take?''',
 f'''You decided that {italic('maybe')} breaking into an unhabited house isn't a very good use of your time.''',
 '''You turn around and decide to go on with your day.''',
 '''...''',
-f'''You feel like you just forgot something {TF.format('important', TextColorTags.BRIGHT_RED)}.'''
+f'''You feel like you just forgot something important.'''
 ],
 'options' : 'ENDING AVOID_DANGER'
 },
@@ -659,7 +775,7 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 'type' : RoomType.STANDARD,
 'entry_text' : '''You looked around the house for a way in.
 While the front door worked properly, the backdoor had already fallen off on its own.
-You made your way to the house's living room.''',
+You made your way into the house.''',
 'options' : 12
 },
 
@@ -667,38 +783,49 @@ You made your way to the house's living room.''',
 'type' : RoomType.STANDARD,
 'entry_text' : 'The mansion is huge, and there are quite a few things worth taking a look at. Where do you go?',
 'second_arrival_text' : '''What now?''',
-'options' : {'The 1st floor' : 14, 'The ground floor' : 13, 'The basement' : 15},
+'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, 'The washing room' : 16, 
+             'The entry' : 17, 'The front door' : 18, 'The first floor' : 20, 'The basement door' : 29},
 },
 
-    13 : {
+    20 : {
 'type' : RoomType.STANDARD,
-'entry_text' : 'You searched around and found a key. Maybe it could be useful for something?',
-'second_arrival_text' : '''You couldn't find anything interesting.''',
+'entry_text' : [
+'''You decide to go up the stairs.''',
+'''At the top, you notice that the door to the second floor is locked.'''
+],
+'second_arrival_text' : '''You try to go upstairs, but it's locked.''',
+'options' : 21,
+},
+
+    20_001 : {
+'type' : RoomType.STANDARD,
+'entry_text' : 'You go up the stairs and unlock the door.',
+'second_arrival_text' : '''You make your way upstairs.''',
+'options' : 21,
+},
+
+20_002 : {
+'type' : RoomType.STANDARD,
+'entry_text' : 'You go downstairs.',
 'options' : 12
 },
 
-    14 : {
+    21 : {
 'type' : RoomType.STANDARD,
-'entry_text' : 'You used the key you found and went to the first floor.',
-'options' : 16
+'entry_text' : 'You arrive at the second floor. Where do you go?',
+'second_arrival_text' : '''What now?''',
+'options' : {'The first bedroom' : 22, 'The second bedroom' : 23, 'The third bedroom' : 24, 'The storage room' : 25, 
+             'The bathroom' : 26, 'A closet' : 27, 'The hallway' : 28, 'Downstairs' : 20_002},
 },
 
-    15 : {
+    29 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You used the second key you found on the basement door. As you turn the doorknob, you question why you are doing this.
-But you choose to push on anyways. You didn't come this far just to turn around, right?''',
-'options' : 17
+'entry_text' : '''It's locked.''',
+'second_arrival_text' : '''It's still locked.''',
+'options' : 12,
 },
 
-    16 : {
-'type' : RoomType.STANDARD,
-'entry_text' : '''You searched around and found another key.
-You feel like you might know what to do with it.''',
-'second_arrival_text' : '''You couldn't find anything interesting.''',
-'options' : 12
-},
-
-    17 : {
+    31 : {
 'type' : RoomType.STANDARD,
 'entry_text' :  [
 '''As you take your first steps into the basement, you already start regretting your decision.
@@ -709,94 +836,83 @@ But before you can even consider getting out...''',
 '''Looks like you only have one way forwards. Unless...'''
 ],
 'second_arrival_text' : '''What now?''',
-'options' : {'Call for help' : 18, 'Investigate the basement' : 20, 'Break the door open' : 19},
+'options' : {'Call for help' : 32, 'Investigate the basement' : 34, 'Break the door open' : 33},
 },
 
-    18 : {
+    32 : {
 'type' : RoomType.STANDARD,
 'entry_text' :'''You try to call for help with yout voice. Unfortunately, no one is around to hear you.
 Looks like you are on your own...''',
 'second_arrival_text' : '''This isn't going to work...''',
-'options' : 17
+'options' : 31
 },
 
-    19 : {
+    33 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You try to force the door open. Unfortunatively, it's stronger than you expected and dosent even budge.''',
+'entry_text' : [
+'''You try to force the door open.''',
+'''...''',
+'''It dosent even budge...''',
+],
 'second_arrival_text' : '''That's not going to work.''',
-'options' : 17
+'options' : 31
 },
 
-    20 : {
+    34 : {
 'type' : RoomType.STANDARD,
 'entry_text' : '''After a moment of thought, you come to the conclusion that the only way you can hope to get out is by going further in.
 While this seems like a very bad idea... It looks like the only way out.''',
-'options' : 21
+'options' : 'END'
 },
 
-    21 : {
+    35 : {
 'type' : RoomType.STANDARD,
 'entry_text' :  '''---------CHAPTER 1 - Into the dark---------''',
-'options' : 26
+'options' : 'END'
 },
 
-    26 : {
+    36 : {
 'type' : RoomType.CHECKPOINT,
 'entry_text' : 'New checkpoint!',
-'options' : 22,
+'options' : 'END',
 'extra_info' : {'checkpoint_name' : 'Chapter1Start'}
 },
 
-    22 : {
-'type' : RoomType.STANDARD,
-'entry_text' : [
-'''You take a few more steps down the stairs leading to the basement door.''',
-'''The deeper you go, the darker it gets. Eventually, you can barely see anything.''',
-'''Going down the stairs in complete darkness is a terrible idea, but unless you can find a way to light the path, you don't really have an option.'''
-],
-'options' : {'Track back to find a light source' : 23,  'Go downstairs in the dark' : 24, 'Use your flashlight to light up the path' : 25},
-},
-
-    23 : {
-'type' : RoomType.STANDARD,
-'entry_text' : '''You track back to find a light source and eventually find one.
-You use the newfound light to lighten up the path ahead.''',
-'options' : 27
-},
-
-    24 : {
-'type' : RoomType.STANDARD,
-'entry_text' : [
-    'Despite not being able to see anything, you choose to push on anyways.',
-    '''Eventually, you can't even see the steps you're going wakling on.''',
-    '''Your pace slows down to a crawl as you try to avoid falling.''',
-    '''Unfortunately for you, you step on a crack that was concealed in the darkness...''',
-    '''And you tumble all the way down the stairs.'''
-],
-'options' : 'ENDING TUMBLE',
-},
-
-    25 : {
-'type' : RoomType.STANDARD,
-'entry_text' : '''You use the flashlight you grabbed earlier to lighten up the path.''',
-'options' : 27
-},
-
-    27 : {
-'type' : RoomType.STANDARD,
-'entry_text' : [
-'''As you descend further, you notice that the stairs are slowly deteriorating.''',
-'''Thanks the light you brought, you manage to avoid a big crack in the stairs.''',
-],
-'options' : 28
-},
-
-    28 : {
-'type' : RoomType.STANDARD,
-'entry_text' : '''... (TBD)''',
-'options' : 'END'
-},
 }
+def show_map(map : str, marker_dict : dict[str|int, str]|None = None):
+    if marker_dict is None: marker_dict = {}
+    for marker in marker_dict:
+        if isinstance(marker, str): marker = MAP_MARKER_DATA[map][marker]
+    start_index : int = 0
+    while True:
+        index = map.find('`', start_index)
+        if index == -1: break
+        num_slice = map[index + 1 : index + 3]
+        map.replace(num_slice, ' ' * len(num_slice))
+        marker_value = int(num_slice)
+        if marker_value in marker_dict:
+            map[index : index+6] = marker_dict[marker_value]
+        start_index = index + 2
+        
+MAP_MANOR_GROUND : str = \
+'''
+__________________________________
+| kitchen |
+| `1      |                                       
+|_________|
+|
+|
+|
+|
+|
+|
+|_______________________
+'''.removeprefix('\n')
+
+MAP_MARKER_DATA : dict[str, dict[str, int]] = {
+    MAP_MANOR_GROUND : {'kitchen' : 1}
+}
+
 
 ending_data : dict[str, EndingInfo] = {
 'Tumble' : {
@@ -812,121 +928,6 @@ ending_data : dict[str, EndingInfo] = {
 'retry_checkpoint' : None
 }
 }
-
-def get_int_choice(option_count : int) -> int:
-    valid = [str(i + 1) for i in range(option_count)]
-    while True:
-        result = input('Selection : ')
-        if result in valid:
-            return int(result)
-        elif result == "cmd":
-            enter_command()
-
-        elif len(result) == 0:
-            print(f'Invalid. Number must range from 1 to {option_count}. To see run a command, type "cmd" or prefix it with "/".')
-        elif result[0] == '/':
-            parse_command(result)
-        else:
-            print(f'Invalid. Number must range from 1 to {option_count}. To see run a command, type "cmd" or prefix it with "/".')
-
-def enter_command():
-    parse_command(input("Command : "))
-
-def parse_command(message : str):
-    if message[0] == '/':
-        message = message[1:]
-    command = message
-    result = is_valid_command(command)
-    if result == False:
-        print(f'"{command}" is not a recognized command. To see a list of all commands, use help.')
-        return False
-    elif result == True:
-        process_command(command)
-        return True
-    elif type(result) == str:
-        print(result)
-        return False
-    else:
-        print('Something went wrong. Please try again.')
-
-command_list = ['stop', 'exit', 'quit', 'exit', 'help', 'check']
-
-def is_valid_command(message : str):
-    message = message.lower()
-    words = message.split()
-    command = words[0]
-    args = words[1:]
-    arg_count = len(args)
-    default_error = f'Command was formatted incorrectly. To see how to format the command, use "help {command}"'
-    match command:
-        case 'stop'|'end'|'quit'|'exit':
-            return True
-        case 'check':
-            if arg_count == 0:
-                return default_error
-            thing_to_check = args[0]
-            match thing_to_check:
-                case 'inventory':
-                    return True
-                case _:
-                    return f'"check {thing_to_check}" isnt valid. To see how to format the command, use "help {command}"'
-
-        case 'help':
-            if arg_count == 0:
-                return True
-            command_to_help = args[0]
-            if command_to_help not in command_list:
-                return f'{command_to_help} is not a valid command. To see a list of all commands, use "help".'
-            return True
-
-        case _:
-            return False
-
-def process_command(message : str):
-    message = message.lower()
-    words = message.split()
-    command = words[0]
-    args = words[1:]
-    arg_count = len(args)
-    default_error = 'Something went wrong. Please try again.'
-
-    match command:
-        case 'stop'|'end'|'quit'|'exit':
-            print('Are you sure you want to quit? Type "Y" or "yes" if you want to quit.')
-            result = input().lower()
-            if result == 'y' or result == 'yes':
-                sucsess = game.save(f'saves/{current_save_file}.json')
-                if sucsess:
-                    print('Data saved sucessfully!')
-                else:
-                    print('Data failed to save...')
-                game.quit()
-        case 'check':
-            thing_to_check = args[0]
-            match thing_to_check:
-                case 'inventory':
-                    game.print_inventory()
-                case _:
-                    print(default_error)
-        case 'help':
-            if arg_count == 0:
-                print('quit, stop, end, exit - Close the game')
-                print('check - Check something')
-                print('For more detailed help about a command, use "help <command>"')
-                return
-            command_to_help = args[0]
-            match command_to_help:
-                case 'help':
-                    print('For more detailed help about a command, use "help <command>"')
-                case 'stop'|'end'|'quit'|'exit':
-                    print('Use to quit the game.')
-                case 'check':
-                    print('Use check <something> to check something. You can try to check your inventory.')
-        case _:
-            print(default_error)
-
-def stall(stall_text = '(Enter to continue.) -->'):
-    input(stall_text)
 
 game = Game()
 current_save_file : str|None = None

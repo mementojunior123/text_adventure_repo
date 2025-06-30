@@ -1,5 +1,14 @@
 -------ASAP-------
--------High-------
 -Revamp the manor search section with sub-rooms and lore
+Seeing creepy events would increase paranoia
+At enough paranoia you can just leave and get a good ending
+Basement door is the final chance
+-------High-------
+-Map function
+-Reminder function (ability to see logs kinda like in DDLC)
+-Item drop function so I don't have to create a new management function every time there's an item drop
 ------Medium------
+-Lore notes function
+-Map editor in pygame
 -----Secondary----
+-Ending idea : Justified Paranoia (Lose in the basement section with enough paranoia)
