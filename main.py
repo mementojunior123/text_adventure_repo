@@ -776,7 +776,20 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 'entry_text' : '''You looked around the house for a way in.
 While the front door worked properly, the backdoor had already fallen off on its own.
 You made your way into the house.''',
-'options' : 12
+'options' : 11_001
+},
+
+11_001 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''---------CHAPTER 1 - The Manor---------''',
+'options' : 11_002
+},
+
+11_002 : {
+'type' : RoomType.CHECKPOINT,
+'entry_text' : 'New checkpoint!',
+'options' : 'END',
+'extra_info' : {'checkpoint_name' : 'Chapter1Start'}
 },
 
     12 : {
@@ -867,7 +880,7 @@ While this seems like a very bad idea... It looks like the only way out.''',
 
     35 : {
 'type' : RoomType.STANDARD,
-'entry_text' :  '''---------CHAPTER 1 - Into the dark---------''',
+'entry_text' :  '''---------CHAPTER 2 - Into the dark---------''',
 'options' : 'END'
 },
 
@@ -875,7 +888,7 @@ While this seems like a very bad idea... It looks like the only way out.''',
 'type' : RoomType.CHECKPOINT,
 'entry_text' : 'New checkpoint!',
 'options' : 'END',
-'extra_info' : {'checkpoint_name' : 'Chapter1Start'}
+'extra_info' : {'checkpoint_name' : 'Chapter2Start'}
 },
 
 }
@@ -919,7 +932,7 @@ ending_data : dict[str, EndingInfo] = {
 'ending_name' : 'Bad Ending: Tumble',
 'ending_text' : '''That wasn't very bright...''',
 'retryable' : True,
-'retry_checkpoint' : 'Chapter1Start'
+'retry_checkpoint' : 'Chapter2Start'
 },
 'AVOID_DANGER' : {
 'ending_name' : 'Good Ending: Smart decisions',
