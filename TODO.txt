@@ -6,7 +6,6 @@ Basement door is the final chance
 -------High-------
 -Map function
 -Reminder function (ability to see logs kinda like in DDLC)
--Item drop function so I don't have to create a new management function every time there's an item drop
 ------Medium------
 -Lore notes function
 -Map editor in pygame
