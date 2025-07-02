@@ -819,7 +819,7 @@ You made your way into the house.''',
 
 16 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Floor 1 key obtained!''',
+'entry_text' : f'''{TF.format('Floor 1 key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 12,
 'key_item_drop' : KeyItemCodes.MANOR_FLOOR1_KEY.value
@@ -907,7 +907,7 @@ You made your way into the house.''',
 
 27 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Basement key obtained!''',
+'entry_text' : f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 'key_item_drop' : KeyItemCodes.MANOR_BASEMENT_KEY.value
