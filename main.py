@@ -676,7 +676,7 @@ room_data : dict[int, RoomInfo] = {
 '''It's the kind of weather that makes you feel like nothing could go wrong.''',
 '''That's why you decided to go on a walk around the block.''',
 '''While you're walking, something catches your attention.''',
-'''You see a large decrepit mansion near you.''',
+'''You see a decrepit house near you.''',
 '''While you've never exactly been an explorer, it manages to spike your interest.''',
 '''Although it's a bit creepy, you can't help but wonder what's in there.''',
 '''It's not like anyone lives there anymore...'''
@@ -736,8 +736,10 @@ f'''You feel like you just forgot something important.'''
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You arrived at the mansion.''',
-'''*Insert lengthy description here*''',
-'''You slowly walk up to the front door and try to open it.''',
+'''It looks extremely worn down.''',
+'''You slowly walk up to the front door and look at it.''',
+'''It's in surprisingly good condition, considering what the rest of the house looks like.''',
+'''You try to open it.''',
 '''*click*''',
 '''*click* *click*''',
 '''It's locked. What do you do?''',
@@ -761,7 +763,6 @@ The door won.''',
 'entry_text' : [
 '''You look around for a window to break and find one.''',
 f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
-'''Besides, breaking a window isn't exactly a great idea.''',
 ],
 'second_arrival_text' : '''Cant break a window if there's no window...''',
 'options' : 5
@@ -769,9 +770,11 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 
     11 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''You looked around the house for a way in.
-While the front door worked properly, the backdoor had already fallen off on its own.
-You made your way into the house.''',
+'entry_text' : [
+'''You looked around the house for a way in.''',
+'''Despite the front door being completely fine, the backdoor is on the verge of falling apart.''',
+'''You make your way into the house.''',
+],
 'options' : 11_001
 },
 
@@ -790,16 +793,27 @@ You made your way into the house.''',
 
     12 : {
 'type' : RoomType.STANDARD,
-'entry_text' : 'The mansion is huge, and there are quite a few things worth taking a look at. Where do you go?',
+'entry_text' : [
+'''The house is odd.''',
+'''For some reason, it feels like some things are just... out of place.''',
+'''You decide to take a look at...''',
+],
 'second_arrival_text' : '''What now?''',
-'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, 'The washing room' : 16, 
-             'The entry' : 17, 'The front door' : 18, 'The first floor' : 20, 'The basement door' : 29},
+'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, 'The washing room' : 16, #cut the washing room?
+             'The entry' : 17, 'The front door' : 18, 'Upstairs' : 20, 'The basement door' : 29},
 },
 
 13 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
-'second_arrival_text' : '''Nothing here.''',
+'entry_text' : [
+'''You take a look at the room.''',
+'''There isn't anything that catches your attention.''',
+'''That is, until you notice a book.''',
+'''There's nothing special about this book, except for the fact that it released last week.''',
+'''...'''
+'''You decide to not think about the implications.'''
+],
+'second_arrival_text' : '''You remember the book you noticed earlier. What could it possibly mean?''',
 'options' : 12,
 },
 
@@ -819,17 +833,17 @@ You made your way into the house.''',
 
 16 : {
 'type' : RoomType.STANDARD,
-'entry_text' : f'''{TF.format('Floor 1 key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
+'entry_text' : '''Nothing here.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 12,
-'key_item_drop' : KeyItemCodes.MANOR_FLOOR1_KEY.value
 },
 
 17 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : f'''{TF.format('Floor 1 key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 12,
+'key_item_drop' : KeyItemCodes.MANOR_FLOOR1_KEY.value
 },
 
 18 : {
@@ -866,8 +880,8 @@ You made your way into the house.''',
 'type' : RoomType.STANDARD,
 'entry_text' : 'You arrive at the second floor. Where do you go?',
 'second_arrival_text' : '''What now?''',
-'options' : {'The first bedroom' : 22, 'The second bedroom' : 23, 'The third bedroom' : 24, 'The storage room' : 25, 
-             'The bathroom' : 26, 'A closet' : 27, 'The hallway' : 28, 'Downstairs' : 20_002},
+'options' : {'The first bedroom' : 22, 'The second bedroom' : 23, 'The storage room' : 25, #bedroom 3 = 24
+             'A closet' : 27, 'The hallway' : 28, 'Downstairs' : 20_002}, #bathroom 2 = 26
 },
 
 22 : {
@@ -886,7 +900,7 @@ You made your way into the house.''',
 
 24 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : '''Nothing in the third bedroom.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
@@ -900,7 +914,7 @@ You made your way into the house.''',
 
 26 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : '''Nothing in the second bathroom.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
