@@ -1,6 +1,9 @@
 -------ASAP-------
 -Revamp the manor search section with sub-rooms and lore
 -Rename the manor to a house beacause i don't feel like describing that many places
+-Basement door opening sequence isn't done
+-Locations apart from the living room aren't done
+-Think about room 13 (living room)
 -------High-------
 -Map function
 -Reminder function (ability to see logs kinda like in DDLC)

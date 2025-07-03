@@ -632,6 +632,15 @@ class Room:
         stall('')
         print('Thankfully, you already have the key to unlock the door and you open it.')
 
+    def manage_room_20001(self):
+        if KeyItemCodes.MANOR_BASEMENT_KEY.value in game.key_items:
+            room_to_return = 21_002
+        else:
+            room_to_return = 21_001
+        stall()
+        print('')
+        return room_to_return
+
     def enter_room_32(self):
         if game.has_visited[32] > 1:
             print(self.data['second_arrival_text'])
@@ -712,7 +721,7 @@ What do you take?''',
     5 : {
 'type' : RoomType.STANDARD,
 'entry_text' : 'You think about another way to get into the mansion.',
-'options' : {'Force the door open' : 9, 'Break a window' : 10, 'Try to find a way around' : 11},
+'options' : {'Force the door open' : 9, 'Try to find a way around' : 11},
 },
 
     6 : {
@@ -737,6 +746,7 @@ f'''You feel like you just forgot something important.'''
 'entry_text' : [
 '''You arrived at the mansion.''',
 '''It looks extremely worn down.''',
+'''For some reason, it dosen't seem to have any windows.''',
 '''You slowly walk up to the front door and look at it.''',
 '''It's in surprisingly good condition, considering what the rest of the house looks like.''',
 '''You try to open it.''',
@@ -745,7 +755,7 @@ f'''You feel like you just forgot something important.'''
 '''It's locked. What do you do?''',
 ],
 'second_arrival_text' : 'You think about another way to get into the mansion.',
-'options' : {'Force the door open' : 9, 'Break a window' : 10, 'Try to find a way around' : 11, 'Stop trying to break in' : 6},
+'options' : {'Force the door open' : 9, 'Try to find a way around' : 11, 'Stop trying to break in' : 6},
 },
 
     9 : {
@@ -804,7 +814,7 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 },
 
 13 : {
-'type' : RoomType.STANDARD,
+'type' : RoomType.STANDARD, #might be a bit silly to latch on to this detail
 'entry_text' : [
 '''You take a look at the room.''',
 '''There isn't anything that catches your attention.''',
@@ -860,21 +870,67 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 '''At the top, you notice that the door to the second floor is locked.'''
 ],
 'second_arrival_text' : '''You try to go upstairs, but it's locked.''',
-'options' : 21,
+'options' : 21_001,
 },
 
     20_001 : {
 'type' : RoomType.STANDARD,
 'entry_text' : 'You go up the stairs and unlock the door.',
 'second_arrival_text' : '''You make your way upstairs.''',
-'options' : 21,
+'options' : 21_001,
 },
 
 20_002 : {
 'type' : RoomType.STANDARD,
-'entry_text' : 'You go downstairs.',
+'entry_text' : 'You go back downstairs.',
 'options' : 12
 },
+
+21_001 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+'''You take a look at the second floor.''',
+'''... It's completely empty.''',
+'''No rooms, no walls, no furniture...''',
+'''Nothing apart from a single window.''',
+'''But you don't remember seeing any windows on the exterior of the house...''',
+'''You take a look at the floor.''',
+'''Despite the house's apparent age, the floor is completely clean, as if someone passed by here to clean.''',
+'''On the ground, there's a key in the middle of the room.''',
+'''You feel like it could be useful, but something tells you you should leave it there.''',
+'''This place is really starting to unsettle you.''',
+'''You decide to...'''
+],
+'second_arrival_text' : '''You ponder about taking the key you left on the floor.\nYou decide to...''',
+'options' : {'Take the key' : 21_003, 'Leave the key' : 21_004},
+},
+
+21_002 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+'''You think about the window and the key and start wondering\nif you've made a mistake by coming to this place.''',
+'''You hope that the awnser is no but, at this point, you really can't be sure.'''
+],
+'options' : 20_002,
+},
+
+21_003 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+'''You decide to take the key.''',
+f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
+'''Hopefully, this won't backfire...'''
+],
+'options' : 20_002,
+'key_item_drop' : KeyItemCodes.MANOR_BASEMENT_KEY.value
+},
+
+21_004 : {
+'type' : RoomType.STANDARD,
+'entry_text' : 'You decided to leave the key on the ground. Something about it just creeps you out.',
+'options' : 20_002
+},
+
 
     21 : {
 'type' : RoomType.STANDARD,
@@ -884,16 +940,18 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
              'A closet' : 27, 'The hallway' : 28, 'Downstairs' : 20_002}, #bathroom 2 = 26
 },
 
+
+
 22 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : '''Nothing in the first bedroom.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
 
 23 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : '''Nothing in the second bedroom.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
