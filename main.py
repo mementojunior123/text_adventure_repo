@@ -291,12 +291,13 @@ class RoomType(Enum):
     CHECKPOINT = 'Checkpoint'
 
 class OptionalRoomInfo(TypedDict, total=False):
-    second_arrival_text : str
+    second_arrival_text : str|list[str]
     extra_info : dict[str, Any]
     key_item_drop : KeyItemCode
+    alternate_text : list[str|list[str]]
 
 class RoomInfo(OptionalRoomInfo):
-    entry_text : str
+    entry_text : str|list[str]
     options : dict[str, int]|int|str
     type : RoomType|str
 
@@ -318,7 +319,7 @@ ITEM_DATA : dict[ItemCode, ItemInfo] = {
 
 class Game:
     def __init__(self):
-        self.global_state : dict[str, AnyJson] = {'Cash' : 0}
+        self.global_state : dict[str, AnyJson] = {}
         self.inventory : list[AnyInvSlotData] = []
         self.has_visited : dict[int, int] = defaultdict(lambda : 0)
         self.room_state : dict[int, dict[str, AnyJson]] = {}
@@ -329,7 +330,7 @@ class Game:
         self.key_items : list[str] = []
 
     def reset(self):
-        self.global_state = {'Cash' : 0}
+        self.global_state = {}
         self.inventory = []
         self.has_visited = defaultdict(lambda : 0)
         self.room_state = {}
@@ -559,7 +560,6 @@ class Room:
             second_arrival_text = self.data.get('second_arrival_text', None)
             txt_to_display = second_arrival_text if second_arrival_text else self.data['entry_text']
 
-
         if type(txt_to_display) == str:
             print(txt_to_display)
         else:
@@ -619,9 +619,10 @@ class Room:
         return self.data['options']
     
     def enter_room_12(self):
+        if 12 not in game.room_state: game.room_state[12] = {}
         if 'Alert' not in game.room_state[12]: game.room_state[12]['Alert'] = 0
         if 'TimesAlerted' not in game.room_state[12]: game.room_state[12]['TimesAlerted'] = 0
-        high_alert : bool = game.room_state[12]['Alert'] >= 3
+        high_alert : bool = game.room_state[12]['Alert'] >= 6
 
         if high_alert and not game.temp_data.get('did_alert', False):
             game.room_state[12]['TimesAlerted'] += 1
@@ -656,7 +657,7 @@ class Room:
 
     def manage_room_12(self):
         room_12_state = game.room_state[12]
-        high_alert : bool = room_12_state['Alert'] >= 3
+        high_alert : bool = room_12_state['Alert'] >= 6
         options = self.data['options']
         option_dict : dict[int, str] = {}
         for i, option in enumerate(options):
@@ -664,10 +665,11 @@ class Room:
             option_dict[i + 1] = option
         if high_alert:
             print(f'{i+2}-Leave')
-            option_dict[i+2] = 12_001
+            option_dict[i+2] = 'Leave'
         choice = get_int_choice(len(options) + 1 if high_alert else len(options))
+        str_result = option_dict[choice]
+        result = options[str_result] if str_result != 'Leave' else 12_001
         print('')
-        result = options[option_dict[choice]]
         if result == 20:
             result = 20_001 if KeyItemCodes.MANOR_FLOOR1_KEY.value in game.key_items else 20
         elif result == 29:
@@ -679,10 +681,37 @@ class Room:
                 result = 29_002
             else:
                 result = 29_001
+        elif result == 18:
+            result = 18_001 if high_alert else 18
         return result
     
     def enter_room_13(self):
+        self.enter_default()
         if game.has_visited[13] <= 1 and not game.temp_data.get('did_alert', False):
+            game.room_state[12]['Alert'] += 1
+            game.temp_data['did_alert'] = True
+    
+    def enter_room_14(self):
+        high_alert : bool = game.room_state[12]['Alert'] >= 6
+        if game.has_visited[14] <= 1:
+            txt_to_display = self.data['entry_text'] if not high_alert else self.data['alternate_text'][0]
+        else: 
+            txt_to_display = self.data['second_arrival_text'] if not high_alert else self.data['alternate_text'][1]
+        if type(txt_to_display) == str:
+            print(txt_to_display)
+        else:
+            txt_to_display : list[str]
+            for part in txt_to_display:
+                if part == txt_to_display[-1]:
+                    print(part, end = '\n')
+                    if not isinstance(self.data['options'], int): 
+                        stall()
+                        print('')
+                    break
+                else:
+                    stall(part)
+
+        if game.has_visited[14] <= 1 and not game.temp_data.get('did_alert', False):
             game.room_state[12]['Alert'] += 1
             game.temp_data['did_alert'] = True
     
@@ -702,7 +731,7 @@ class Room:
     def enter_room_19003(self):
         self.enter_default()
         if game.has_visited[19003] <= 1 and not game.temp_data.get('did_unalert', False):
-            game.room_state[12]['Alert'] = 0
+            game.room_state[12]['Alert'] = 1
             game.temp_data['did_unalert'] = True
     
     def enter_room_20001(self):
@@ -737,7 +766,7 @@ class Room:
     def enter_room_21003(self):
         self.enter_default()
         if game.has_visited[21_003] <= 1 and not game.temp_data.get('did_unalert', False):
-            game.room_state[12]['Alert'] -= 1
+            game.room_state[12]['Alert'] -= 0
             game.temp_data['did_unalert'] = True
     
     def enter_room_29_001(self): #low alert
@@ -927,7 +956,7 @@ f'''...''',
 f'''This place is creeping you out too much.''',
 f'''You have to get out of here...''',
 f'''You decide to get out of the house.''',
-f'''As you walk outside, the fresh air calms you down.''',
+f'''As you walk outside, the fresh air calms you down.''', #this line feels awkward
 f'''You walk away from the house.''',
 f'''...''',
 f'''You feel like you just forgot something important.''',
@@ -938,25 +967,31 @@ f'''No, you {italic('definitively')} forgot something important.'''
 
 
     13 : {
-'type' : RoomType.STANDARD, #might be a bit silly to latch on to this detail
+'type' : RoomType.STANDARD,
 'entry_text' : [
-'''You take a look at the room.''',
-'''There isn't anything that catches your attention.''',
-'''That is, until you notice a book.''',
-'''There's nothing special about this book, except for the fact that it released last week.''',
-'''...'''
-'''You decide to not think about the implications.'''
+'''The author wrote something he thought was going to be scary, but then he realised it didn't make any sense so it was scrapped.'''
 ],
-'second_arrival_text' : '''You remember the book you noticed earlier. What could it possibly mean?''',
+'second_arrival_text' : '''What could it have possibly been?''',
 'options' : 12,
 },
 
     14 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''Nothing in the kitchen.'''
+'''*Loud noise*''',
+'''You get a bit startled.'''
 ],
-'second_arrival_text' : '''Nothing here.''',
+'second_arrival_text' : [
+'''Nothing here.'''
+],
+'alternate_text' : [[
+'''*Loud noise*''',
+'''Normally, you would be a bit startled.''', #High alert first entry
+'''But since you're paranoid now you make a disproportionate reaction.'''
+],[
+'''[Second arrival text but there's some extra flavor text]''' #High alert second arrival
+],
+],
 'options' : 12,
 },
 
@@ -1015,13 +1050,14 @@ f'''{TF.format('Floor 1 key obtained!', TextColorTags.BRIGHT_YELLOW)}'''
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''This place is creeping you out.''',
-'''You consider going outside to get some fresh air.'''
+'''You consider going outside to get some fresh air. Maybe it will help a little bit.'''
 ],
 'second_arrival_text' : ['''...''', '''You consider going outside to calm down a bit.'''],
 'options' : {'Go outside' : 19_001, "Don't go outside" : 19},
 },
 
     19 : {
+'type' : RoomType.STANDARD,
 'entry_text' : '''You decide not to go outside.''',
 'options' : 12,   
 },
@@ -1363,7 +1399,7 @@ MAP_MARKER_DATA : dict[str, dict[str, int]] = {
 
 
 ending_data : dict[str, EndingInfo] = {
-'Tumble' : {
+'TUBMLE' : {
 'ending_name' : 'Bad Ending: Tumble',
 'ending_text' : '''That wasn't very bright...''',
 'retryable' : True,
@@ -1380,7 +1416,13 @@ ending_data : dict[str, EndingInfo] = {
 'ending_text' : 'Although you got a bit scared, you manged to stay out of trouble.',
 'retryable' : True,
 'retry_checkpoint' : 'Chapter1Start'
-}
+},
+'ESCAPE' : {
+'ending_name' : 'Good Ending: Escaped',
+'ending_text' : "You managed to escape the basement. Too bad you won't remember any of it...",
+'retryable' : True,
+'retry_checkpoint' : 'Chapter2Start'
+},
 }
 
 game = Game()
