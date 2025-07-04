@@ -6,7 +6,7 @@ import os
 from typing import Callable, Any, TypedDict, Union, TypeAlias, Literal
 from enum import Enum
 
-SAVE_VERSION = 7
+SAVE_VERSION = 5
 
 AnyJson : TypeAlias = Union[str, int, float, bool, None, dict[str, 'AnyJson'], list['AnyJson']]
 ItemCode : TypeAlias = str
@@ -107,7 +107,7 @@ def parse_command(message : str):
     else:
         print('Something went wrong. Please try again.')
 
-command_list = ['stop', 'exit', 'quit', 'exit', 'help', 'check']
+command_list = ['stop', 'exit', 'quit', 'exit', 'help', 'check', 'save']
 
 def is_valid_command(message : str):
     message = message.lower()
@@ -117,7 +117,9 @@ def is_valid_command(message : str):
     arg_count = len(args)
     default_error = f'Command was formatted incorrectly. To see how to format the command, use "help {command}"'
     match command:
-        case 'stop'|'end'|'quit'|'exit':
+        case 'stop'|'quit'|'exit':
+            return True
+        case 'save':
             return True
         case 'check':
             if arg_count == 0:
@@ -128,7 +130,6 @@ def is_valid_command(message : str):
                     return True
                 case _:
                     return f'"check {thing_to_check}" isnt valid. To see how to format the command, use "help {command}"'
-
         case 'help':
             if arg_count == 0:
                 return True
@@ -149,7 +150,7 @@ def process_command(message : str):
     default_error = 'Something went wrong. Please try again.'
 
     match command:
-        case 'stop'|'end'|'quit'|'exit':
+        case 'stop'|'quit'|'exit':
             print('Are you sure you want to quit? Type "Y" or "yes" if you want to quit.')
             result = input().lower()
             if result == 'y' or result == 'yes':
@@ -159,6 +160,12 @@ def process_command(message : str):
                 else:
                     print('Data failed to save...')
                 game.quit()
+        case 'save':
+            sucsess = game.save(f'saves/{current_save_file}.json')
+            if sucsess:
+                print('Data saved sucessfully!')
+            else:
+                print('Data failed to save...')
         case 'check':
             thing_to_check = args[0]
             match thing_to_check:
@@ -168,16 +175,19 @@ def process_command(message : str):
                     print(default_error)
         case 'help':
             if arg_count == 0:
-                print('quit, stop, end, exit - Close the game')
+                print('quit, stop, exit - Close the game')
                 print('check - Check something')
+                print('save - Save the game in the current save file.')
                 print('For more detailed help about a command, use "help <command>"')
                 return
             command_to_help = args[0]
             match command_to_help:
                 case 'help':
                     print('For more detailed help about a command, use "help <command>"')
-                case 'stop'|'end'|'quit'|'exit':
+                case 'stop'|'quit'|'exit':
                     print('Use to quit the game.')
+                case 'save':
+                    print('Use to save the game in the current save file.')
                 case 'check':
                     print('Use check <something> to check something. You can try to check your inventory.')
         case _:
@@ -546,7 +556,7 @@ class Room:
         if game.has_visited[self.room_number] <= 1:
             txt_to_display = self.data['entry_text']
         else:
-            second_arrival_text = self.data.get('second_arrival_text', False)
+            second_arrival_text = self.data.get('second_arrival_text', None)
             txt_to_display = second_arrival_text if second_arrival_text else self.data['entry_text']
 
 
@@ -609,8 +619,40 @@ class Room:
         return self.data['options']
     
     def enter_room_12(self):
-        self.enter_default()
         if 'Alert' not in game.room_state[12]: game.room_state[12]['Alert'] = 0
+        if 'TimesAlerted' not in game.room_state[12]: game.room_state[12]['TimesAlerted'] = 0
+        high_alert : bool = game.room_state[12]['Alert'] >= 3
+
+        if high_alert and not game.temp_data.get('did_alert', False):
+            game.room_state[12]['TimesAlerted'] += 1
+            game.temp_data['did_alert'] = True
+
+        if game.has_visited[self.room_number] <= 1:
+            txt_to_display = self.data['entry_text']
+        elif game.room_state[12]['TimesAlerted'] <= 0 or not high_alert:
+            txt_to_display = self.data['second_arrival_text']
+        elif game.room_state[12]['TimesAlerted'] == 1:
+            txt_to_display = [
+            '''...'''
+            '''This place is really getting under your skin...''',
+            '''You start considering leaving.'''
+            ]
+        else:
+            txt_to_display = 'What now? Maybe leaving is a good idea...'
+        
+        if type(txt_to_display) == str:
+            print(txt_to_display)
+        else:
+            txt_to_display : list[str]
+            for part in txt_to_display:
+                if part == txt_to_display[-1]:
+                    print(part, end = '\n')
+                    if not isinstance(self.data['options'], int): 
+                        stall()
+                        print('')
+                    break
+                else:
+                    stall(part)
 
     def manage_room_12(self):
         room_12_state = game.room_state[12]
@@ -640,9 +682,29 @@ class Room:
         return result
     
     def enter_room_13(self):
-        if game.has_visited[13] <= 1:
+        if game.has_visited[13] <= 1 and not game.temp_data.get('did_alert', False):
             game.room_state[12]['Alert'] += 1
-
+            game.temp_data['did_alert'] = True
+    
+    def enter_room_18(self): #low alert
+        self.enter_default()
+        if game.has_visited[18_001] <= 0: game.has_visited[18_001] = 1
+    
+    def enter_room_18_001(self): #high alert
+        self.enter_default()
+        if game.has_visited[18] <= 0: game.has_visited[18] = 1
+    
+    def manage_room_18_001(self):
+        stall()
+        print('')
+        return 12 if game.has_visited[19_001] >= 1 else 18_002 #can only go outside (room 19_001) once
+    
+    def enter_room_19003(self):
+        self.enter_default()
+        if game.has_visited[19003] <= 1 and not game.temp_data.get('did_unalert', False):
+            game.room_state[12]['Alert'] = 0
+            game.temp_data['did_unalert'] = True
+    
     def enter_room_20001(self):
         if game.has_visited[20] >= 1 or game.has_visited[20_001] >= 1:
             self.enter_default()
@@ -668,13 +730,15 @@ class Room:
     
     def enter_room_21001(self):
         self.enter_default()
-        if game.has_visited[21_001] <= 1:
+        if game.has_visited[21_001] <= 1 and not game.temp_data.get('did_alert', False):
             game.room_state[12]['Alert'] += 3
+            game.temp_data['did_alert'] = True
     
     def enter_room_21003(self):
         self.enter_default()
-        if game.has_visited[21_003] <= 1:
+        if game.has_visited[21_003] <= 1 and not game.temp_data.get('did_unalert', False):
             game.room_state[12]['Alert'] -= 1
+            game.temp_data['did_unalert'] = True
     
     def enter_room_29_001(self): #low alert
         self.enter_default()
@@ -853,19 +917,23 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 ],
 'second_arrival_text' : '''What now?''',
 'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, 'The washing room' : 16, #cut the washing room?
-             'The entry' : 17, 'Upstairs' : 20, 'The basement door' : 29}, #front door = 18
+             'The entry' : 17, 'The front door' : 18, 'Upstairs' : 20, 'The basement door' : 29},
 },
 
     12_001 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-f'''PLACEHOLDER''',
-f'''You turn around and decide to go on with your day.''',
+f'''...''',
+f'''This place is creeping you out too much.''',
+f'''You have to get out of here...''',
+f'''You decide to get out of the house.''',
+f'''As you walk outside, the fresh air calms you down.''',
+f'''You walk away from the house.''',
 f'''...''',
 f'''You feel like you just forgot something important.''',
 f'''No, you {italic('definitively')} forgot something important.'''
 ],
-'options' : 'ENDING AVOID_DANGER'
+'options' : 'ENDING AVOID_DANGER_B'
 },
 
 
@@ -920,11 +988,74 @@ f'''{TF.format('Floor 1 key obtained!', TextColorTags.BRIGHT_YELLOW)}'''
 'key_item_drop' : KeyItemCodes.MANOR_FLOOR1_KEY.value
 },
 
-    18 : { #unused
+    18 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing at the front door.''',
-'second_arrival_text' : '''Nothing here.''',
+'entry_text' : [
+'''You take a look at the front door.''',
+'''Nothing about it stands out.'''
+],
+'second_arrival_text' : '''Still, nothing stands out about the door.''',
 'options' : 12,
+},
+
+    18_001 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+'''You take a look at the front door.''',
+'''Nothing about it stands out, but you feel like you're missing something important.'''
+],
+'second_arrival_text' : [
+'''Still, nothing stands out about the door.''',
+'''But you can't help but feel like you're missing something.'''
+],
+'options' : 18_002,
+},
+
+    18_002 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+'''This place is creeping you out.''',
+'''You consider going outside to get some fresh air.'''
+],
+'second_arrival_text' : ['''...''', '''You consider going outside to calm down a bit.'''],
+'options' : {'Go outside' : 19_001, "Don't go outside" : 19},
+},
+
+    19 : {
+'entry_text' : '''You decide not to go outside.''',
+'options' : 12,   
+},
+
+    19_001: {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+'''You decide to go outside.''', 
+'''You think about leaving.'''
+],
+'options' : {'Leave' : 19_002, "Don't leave" : 19_003},
+},
+
+    19_002 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+f'''This place is creeping you out too much.''',
+f'''You have to get out of here...''',
+f'''The fresh air managed to calm you down a bit, but not enough to go back in.''',
+f'''You walk away from the house.''',
+f'''...''',
+f'''You feel like you just forgot something important.''',
+f'''No, you {italic('definitively')} forgot something important.'''
+],
+'options' : 'ENDING AVOID_DANGER_B'
+},
+
+    19_003 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+f'''Despite your fears, you decided to stay here and figure out what this place's deal is.''',
+'''Going outside managed to calm you down a bit.'''
+],
+'options' : 12    
 },
 
     20 : {
