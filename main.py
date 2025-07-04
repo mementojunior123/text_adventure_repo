@@ -250,6 +250,7 @@ TF = TextFormatter()
 def italic(text : str):
     return TF.format(text, TextFormatTags.ITALIC)
 
+ConvertedToInteger : TypeAlias = int
 
 class GameState(TypedDict):
     '''global_state : dict[str, AnyJson]
@@ -258,9 +259,9 @@ class GameState(TypedDict):
     visited_rooms : dict[int|str, int]
     current_room : int'''
     global_state : dict[str, AnyJson]
-    room_state : dict[int|str, dict[str, AnyJson]]
+    room_state : dict[ConvertedToInteger, dict[str, AnyJson]]
     game_inventory : dict[str, int]
-    visited_rooms : dict[int|str, int]
+    visited_rooms : dict[ConvertedToInteger, int]
     current_room : int
     temp_data : dict[str, AnyJson]
     key_items : list[str]
@@ -310,7 +311,7 @@ class Game:
         self.global_state : dict[str, AnyJson] = {'Cash' : 0}
         self.inventory : list[AnyInvSlotData] = []
         self.has_visited : dict[int, int] = defaultdict(lambda : 0)
-        self.room_state : dict[int, dict] = {}
+        self.room_state : dict[int, dict[str, AnyJson]] = {}
         self.perma_state : dict[str, AnyJson] = {}
         self.checkpoints : dict[str, GameState] = {}
         self.room_number : int = 0
@@ -606,22 +607,42 @@ class Room:
     
         stall()
         return self.data['options']
+    
+    def enter_room_12(self):
+        self.enter_default()
+        if 'Alert' not in game.room_state[12]: game.room_state[12]['Alert'] = 0
 
     def manage_room_12(self):
+        room_12_state = game.room_state[12]
+        high_alert : bool = room_12_state['Alert'] >= 3
         options = self.data['options']
         option_dict : dict[int, str] = {}
         for i, option in enumerate(options):
             print(f'{i+1}-{option}')
             option_dict[i + 1] = option
-        choice = get_int_choice(len(options))
+        if high_alert:
+            print(f'{i+2}-Leave')
+            option_dict[i+2] = 12_001
+        choice = get_int_choice(len(options) + 1 if high_alert else len(options))
         print('')
         result = options[option_dict[choice]]
         if result == 20:
             result = 20_001 if KeyItemCodes.MANOR_FLOOR1_KEY.value in game.key_items else 20
         elif result == 29:
-            result = 29_001 if KeyItemCodes.MANOR_BASEMENT_KEY.value in game.key_items else 29
+            if game.has_visited[30_002] >= 1:
+                result = 30_002 if high_alert else 30_005
+            elif KeyItemCodes.MANOR_BASEMENT_KEY.value not in game.key_items:
+                result = 29
+            elif high_alert:
+                result = 29_002
+            else:
+                result = 29_001
         return result
     
+    def enter_room_13(self):
+        if game.has_visited[13] <= 1:
+            game.room_state[12]['Alert'] += 1
+
     def enter_room_20001(self):
         if game.has_visited[20] >= 1 or game.has_visited[20_001] >= 1:
             self.enter_default()
@@ -630,7 +651,11 @@ class Room:
         stall('')
         print('At the top, you notice that the door to the second floor is locked.', end='')
         stall('')
-        print('Thankfully, you already have the key to unlock the door and you open it.')
+        print('You try to unlock the door with the key you already have.')
+        stall('')
+        print('*click*')
+        stall('')
+        print('It works perfectly.')
 
     def manage_room_20001(self):
         if KeyItemCodes.MANOR_BASEMENT_KEY.value in game.key_items:
@@ -640,6 +665,24 @@ class Room:
         stall()
         print('')
         return room_to_return
+    
+    def enter_room_21001(self):
+        self.enter_default()
+        if game.has_visited[21_001] <= 1:
+            game.room_state[12]['Alert'] += 3
+    
+    def enter_room_21003(self):
+        self.enter_default()
+        if game.has_visited[21_003] <= 1:
+            game.room_state[12]['Alert'] -= 1
+    
+    def enter_room_29_001(self): #low alert
+        self.enter_default()
+        if game.has_visited[29_002] <= 0: game.has_visited[29_002] = 1
+    
+    def enter_room_29_002(self): #high alert
+        self.enter_default()
+        if game.has_visited[29_001] <= 0: game.has_visited[29_001] = 1
 
     def enter_room_32(self):
         if game.has_visited[32] > 1:
@@ -735,7 +778,7 @@ f'''You feel like you just forgot something important.'''
 'options' : 'ENDING AVOID_DANGER'
 },
 
-    7 : {
+    7 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : '''You decided to investigate. Will you regret this choice? Only time will tell...''',
 'options' : 8
@@ -788,13 +831,13 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 'options' : 11_001
 },
 
-11_001 : {
+    11_001 : {
 'type' : RoomType.STANDARD,
 'entry_text' : '''---------CHAPTER 1 - The Manor---------''',
 'options' : 11_002
 },
 
-11_002 : {
+    11_002 : {
 'type' : RoomType.CHECKPOINT,
 'entry_text' : 'New checkpoint!',
 'options' : 12,
@@ -810,10 +853,23 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 ],
 'second_arrival_text' : '''What now?''',
 'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, 'The washing room' : 16, #cut the washing room?
-             'The entry' : 17, 'The front door' : 18, 'Upstairs' : 20, 'The basement door' : 29},
+             'The entry' : 17, 'Upstairs' : 20, 'The basement door' : 29}, #front door = 18
 },
 
-13 : {
+    12_001 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+f'''PLACEHOLDER''',
+f'''You turn around and decide to go on with your day.''',
+f'''...''',
+f'''You feel like you just forgot something important.''',
+f'''No, you {italic('definitively')} forgot something important.'''
+],
+'options' : 'ENDING AVOID_DANGER'
+},
+
+
+    13 : {
 'type' : RoomType.STANDARD, #might be a bit silly to latch on to this detail
 'entry_text' : [
 '''You take a look at the room.''',
@@ -827,38 +883,46 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 'options' : 12,
 },
 
-14 : {
+    14 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : [
+'''Nothing in the kitchen.'''
+],
 'second_arrival_text' : '''Nothing here.''',
 'options' : 12,
 },
 
-15 : {
+    15 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : [
+'''Nothing in the bathroom.'''
+],
 'second_arrival_text' : '''Nothing here.''',
 'options' : 12,
 },
 
-16 : {
+    16 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : [
+'''Nothing in the washing room.'''
+],
 'second_arrival_text' : '''Nothing here.''',
 'options' : 12,
 },
 
-17 : {
+    17 : {
 'type' : RoomType.STANDARD,
-'entry_text' : f'''{TF.format('Floor 1 key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
-'second_arrival_text' : '''Nothing here.''',
+'entry_text' : [
+f'''{TF.format('Floor 1 key obtained!', TextColorTags.BRIGHT_YELLOW)}'''
+],
+'second_arrival_text' : '''Nothing in the entry.''',
 'options' : 12,
 'key_item_drop' : KeyItemCodes.MANOR_FLOOR1_KEY.value
 },
 
-18 : {
+    18 : { #unused
 'type' : RoomType.STANDARD,
-'entry_text' : '''Nothing here.''',
+'entry_text' : '''Nothing at the front door.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 12,
 },
@@ -867,7 +931,8 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You decide to go up the stairs.''',
-'''At the top, you notice that the door to the second floor is locked.'''
+'''At the top, you notice that the door to the second floor is locked, for some reason.'''
+'''It looks like you'll need a key to unlock it.'''
 ],
 'second_arrival_text' : '''You try to go upstairs, but it's locked.''',
 'options' : 21_001,
@@ -875,18 +940,22 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 
     20_001 : {
 'type' : RoomType.STANDARD,
-'entry_text' : 'You go up the stairs and unlock the door.',
+'entry_text' : [
+'''You go up the stairs and try to unlock the door with the key you have.''',
+'''*click*''',
+'''The door unlocks.'''
+],
 'second_arrival_text' : '''You make your way upstairs.''',
 'options' : 21_001,
 },
 
-20_002 : {
+    20_002 : {
 'type' : RoomType.STANDARD,
 'entry_text' : 'You go back downstairs.',
 'options' : 12
 },
 
-21_001 : {
+    21_001 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You take a look at the second floor.''',
@@ -905,16 +974,16 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 'options' : {'Take the key' : 21_003, 'Leave the key' : 21_004},
 },
 
-21_002 : {
+    21_002 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''You think about the window and the key and start wondering\nif you've made a mistake by coming to this place.''',
+'''You think about the window and the key and start wondering if you've made a mistake by coming to this place.''',
 '''You hope that the awnser is no but, at this point, you really can't be sure.'''
 ],
 'options' : 20_002,
 },
 
-21_003 : {
+    21_003 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You decide to take the key.''',
@@ -925,14 +994,14 @@ f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 'key_item_drop' : KeyItemCodes.MANOR_BASEMENT_KEY.value
 },
 
-21_004 : {
+    21_004 : {
 'type' : RoomType.STANDARD,
 'entry_text' : 'You decided to leave the key on the ground. Something about it just creeps you out.',
 'options' : 20_002
 },
 
 
-    21 : {
+    21 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : 'You arrive at the second floor. Where do you go?',
 'second_arrival_text' : '''What now?''',
@@ -942,42 +1011,42 @@ f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 
 
 
-22 : {
+    22 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : '''Nothing in the first bedroom.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
 
-23 : {
+    23 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : '''Nothing in the second bedroom.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
 
-24 : {
+    24 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : '''Nothing in the third bedroom.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
 
-25 : {
+    25 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : '''Nothing here.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
 
-26 : {
+    26 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : '''Nothing in the second bathroom.''',
 'second_arrival_text' : '''Nothing here.''',
 'options' : 21,
 },
 
-27 : {
+    27 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 'second_arrival_text' : '''Nothing here.''',
@@ -985,7 +1054,7 @@ f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 'key_item_drop' : KeyItemCodes.MANOR_BASEMENT_KEY.value
 },
 
-28 : {
+    28 : { #unused
 'type' : RoomType.STANDARD,
 'entry_text' : '''Nothing here.''',
 'second_arrival_text' : '''Nothing here.''',
@@ -994,37 +1063,97 @@ f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 
     29 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''It's locked.''',
-'second_arrival_text' : '''It's still locked.''',
+'entry_text' : [
+'''You walk up to the basement door and notice it's locked.''',
+'''Unfortunately, you don't have the key.''',
+'''It looks like if you want to get in there, you'll have to search around for the basement key.'''
+],
+'second_arrival_text' : '''You need a key to open this door.''',
 'options' : 12,
 },
 
-    29_001 : {
+    29_001 : { #low alert
 'type' : RoomType.STANDARD,
-'entry_text' : '''You think about using the key. You hesitate.''',
-'second_arrival_text' : '''You think about using the key.''',
-'options' : 30,
+'entry_text' : [
+'''You stroll up to the basement door, key in hand.''',
+'''You're fairly hesitant about going in there, but if you want to figure out what's going on here...''',
+'''You have to go down.'''
+],
+'second_arrival_text' : '''You think about finally going in the basement. You hesitate a bit.''',
+'options' : {'Go in' : 30, 'Go back' : 30_001},
 },
 
-30 : {
+    29_002 : { #high alert
 'type' : RoomType.STANDARD,
-'entry_text' : '''You actually open the door.''',
+'entry_text' : [
+'''You walk up to the basement door, key in hand.''',
+f'''You {italic('really')} don't want to go in there.''',
+'''If there's nothing in the basement, then it's just a waste of time.''',
+'''But if there really is something in there...''',
+'''...'''
+'''Everything about this seems like a terrible idea, but your curiosity won't just let you walk away.'''
+],
+'second_arrival_text' : '''You think about using the key.''',
+'options' : {'Open the door' : 30_002, 'Go back' : 30_001},
+},
+
+
+    30 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You open the door and walk into the basement.''',
 'options' : 31,
 },
 
 
+    30_001 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You decide not to go in. Not yet, atleast.''',
+'options' : 12,
+},
+
+    30_002 : {
+'type' : RoomType.STANDARD,
+'entry_text' : [
+'''You open the door and take a peek.''',
+'''All you see is a staircase going down into complete darkness.''',
+'''The obscurity is not very reassuring, but there's a light switch on a wall in the basment across from the door.''',
+'''You consider what to do.'''
+],
+'second_arrival_text' : '''You consider going in the basement. It feels like a terrible idea, but your curiosity says otherwise.''',
+'options' : {'Go in' : 30_003, 'Go back' : 30_004},
+},
+
+    30_005 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You consider going in the basement.''',
+'options' : {'Go in' : 30_003, 'Go back' : 30_004},
+},
+
+    30_003 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You choose to walk into the basement.''',
+'options' : 31,
+},
+
+    30_004 : {
+'type' : RoomType.STANDARD,
+'entry_text' : '''You choose to go back. No way you're going in there...''',
+'options' : 12,
+},
+
     31 : {
 'type' : RoomType.STANDARD,
 'entry_text' :  [
-'''As you take your first steps into the basement, you already start regretting your decision.
-But before you can even consider getting out...''',
+'''As you take your first steps, you already start regretting your decision.''',
+'''A chill runs down your spine (placeholder).'''
+'''But before you can even consider getting out...''',
 '''*BLAM!*''',
 '''The door closes in on you. Even worse, it's also locked on the inside...''',
 '''...''',
 '''Looks like you only have one way forwards. Unless...'''
 ],
-'second_arrival_text' : '''What now?''',
-'options' : {'Call for help' : 32, 'Investigate the basement' : 34, 'Break the door open' : 33},
+'second_arrival_text' : '''Surely, there's something you can do...''',
+'options' : {'Call for help' : 32, 'Go deeper' : 34, 'Break the door open' : 33},
 },
 
     32 : {
@@ -1050,7 +1179,7 @@ Looks like you are on your own...''',
 'type' : RoomType.STANDARD,
 'entry_text' : '''After a moment of thought, you come to the conclusion that the only way you can hope to get out is by going further in.
 While this seems like a very bad idea... It looks like the only way out.''',
-'options' : 'END'
+'options' : 35
 },
 
     35 : {
@@ -1114,6 +1243,12 @@ ending_data : dict[str, EndingInfo] = {
 'ending_text' : 'You managed to stay out of trouble.',
 'retryable' : False,
 'retry_checkpoint' : None
+},
+'AVOID_DANGER_B' : {
+'ending_name' : 'Good Ending: Spooked',
+'ending_text' : 'Although you got a bit scared, you manged to stay out of trouble.',
+'retryable' : True,
+'retry_checkpoint' : 'Chapter1Start'
 }
 }
 

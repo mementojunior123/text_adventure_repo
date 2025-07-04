@@ -1,13 +1,17 @@
 -------ASAP-------
--Revamp the manor search section with sub-rooms and lore
 -Rename the manor to a house beacause i don't feel like describing that many places
--Basement door opening sequence isn't done
--Locations apart from the living room aren't done
--Think about room 13 (living room)
+-Locations apart from the living room aren't done (rooms 14-18)
+-Think about room 13 (living room) and room 2 (item stand)
+-Remove placeholders (room 12_001, room 29, room 31)
+-Add flavor text for high alert
+-Add more text for the initial entry in room 12
 -------High-------
+-Add descriptitions for the basement door itself
+-Tune the paranoia mechanic (amounts)
+-Think about flavor text in the case where a room is viewed on normal alert then on high alert
+------Medium------
 -Map function
 -Reminder function (ability to see logs kinda like in DDLC)
-------Medium------
 -Lore notes function
 -Map editor in pygame
 -----Secondary----
