@@ -7,6 +7,17 @@ from typing import Callable, Any, TypedDict, Union, TypeAlias, Literal
 from enum import Enum
 
 SAVE_VERSION = 5
+IS_VSCODE : bool
+saves : list[str] = []
+for _, _, files in os.walk('saves'):
+    saves = files
+    break
+IS_VSCODE = any('gitkeep' in save for save in saves)
+
+def crossplatform_input(prompt : object = "") -> str:
+    return_value = input(prompt)
+    if not IS_VSCODE: print('')
+    return return_value
 
 AnyJson : TypeAlias = Union[str, int, float, bool, None, dict[str, 'AnyJson'], list['AnyJson']]
 ItemCode : TypeAlias = str
@@ -74,7 +85,7 @@ def clear_console(method : int = 1):
 def get_int_choice(option_count : int) -> int:
     valid = [str(i + 1) for i in range(option_count)]
     while True:
-        result = input('Selection : ')
+        result = crossplatform_input('Selection : ')
         if result in valid:
             return int(result)
         elif result == "cmd":
@@ -88,7 +99,7 @@ def get_int_choice(option_count : int) -> int:
             print(f'Invalid. Number must range from 1 to {option_count}. To see run a command, type "cmd" or prefix it with "/".')
 
 def enter_command():
-    parse_command(input("Command : "))
+    parse_command(crossplatform_input("Command : "))
 
 def parse_command(message : str):
     if message[0] == '/':
@@ -152,7 +163,7 @@ def process_command(message : str):
     match command:
         case 'stop'|'quit'|'exit':
             print('Are you sure you want to quit? Type "Y" or "yes" if you want to quit.')
-            result = input().lower()
+            result = crossplatform_input().lower()
             if result == 'y' or result == 'yes':
                 sucsess = game.save(f'saves/{current_save_file}.json')
                 if sucsess:
@@ -194,7 +205,7 @@ def process_command(message : str):
             print(default_error)
 
 def stall(stall_text = '(Enter to continue.) -->'):
-    input(stall_text)
+    crossplatform_input(stall_text)
 
 class TextFormatTags(Enum):
     NOTHING = 0
@@ -1436,7 +1447,7 @@ if not os.path.isdir('saves'):
 
 def main():
     global current_save_file, game
-    decision = input('Enter "new save" to make a new save. Enter anything else to continue a save.\n').lower()
+    decision = crossplatform_input('Enter "new save" to make a new save. Enter anything else to continue a save.\n').lower()
     if decision != "new save":
         saves : list[str] = []
         for path, dirs, files in os.walk('saves'):
@@ -1449,7 +1460,7 @@ def main():
             for index, save in enumerate(saves):
                 print(f'{index + 1}. {save}')
             while True:
-                save_choice = input("What save do you want to load?\n")
+                save_choice = crossplatform_input("What save do you want to load?\n")
                 if save_choice == 'new save' or save_choice in saves:
                     break
                 try:
@@ -1480,7 +1491,7 @@ def main():
     if current_save_file is None:
         allow_list : list[str] = ' -_'
         while True:
-            save_name = input("What will this new save be called?\n")
+            save_name = crossplatform_input("What will this new save be called?\n")
             if not all([character in allow_list or character.isalnum() for character in save_name]): print("Invalid! (Invalid character was used)"); continue
             if len(save_name) > 40: print("Invalid! (Save name is max. 40 lines)"); continue
             if save_name == 'new save': print("Invalid! (Cannot use this save name)"); continue
@@ -1510,7 +1521,7 @@ def main():
 
         if type(room_result) != str:
             print('DEMO END - Your progress from this session will not be saved!')
-            response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
+            response : str = crossplatform_input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
             if response == 'y' or response == 'yes':
                 game.reset()
                 continue
@@ -1521,7 +1532,7 @@ def main():
         words = room_result.split()
         if words[0] == 'END':
             print('DEMO END - Your progress from this session will not be saved!')
-            response : str = input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
+            response : str = crossplatform_input("Do you want to play again? Input Y/yes to restart. This will wipe your save.\n").lower()
             if response == 'y' or response == 'yes':
                 game.reset()
                 continue
@@ -1539,7 +1550,7 @@ def main():
             print(ending_text)
             if ending_info['retryable']:
                 stall()
-                response : str = input('Input "quit" to exit the game. Input anything else to go back to a checkpoint and retry.\n').lower()
+                response : str = crossplatform_input('Input "quit" to exit the game. Input anything else to go back to a checkpoint and retry.\n').lower()
                 if response != 'quit':
                     restore_result : bool = game.restore_checkpoint(ending_info['retry_checkpoint'])
                     if restore_result == False: print('Checkpoint could not be loaded- Terminating session!')
@@ -1550,7 +1561,7 @@ def main():
                         continue
             print('DEMO END - Your progress from this session will not be saved!')
             stall()
-            response : str = input("Do you want to play again from the start? Input Y/yes to restart. This will wipe your save.\n").lower()
+            response : str = crossplatform_input("Do you want to play again from the start? Input Y/yes to restart. This will wipe your save.\n").lower()
             if response == 'y' or response == 'yes':
                 game.reset()
                 clear_console()
