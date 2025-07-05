@@ -840,7 +840,7 @@ room_data : dict[int, RoomInfo] = {
 'options' : {'Continue your walk' : 4, 'Investigate the mansion' : 3},
 },
 
-    2 : {
+    2 : { #scrapped
 'type' : RoomType.STANDARD,
 'entry_text' : '''Right before arriving at the mansion, you encountered a mysterious stand. 
 They have a few items on display, and a sign that reads: "Take one item!"
@@ -851,7 +851,7 @@ What do you take?''',
     3 : {
 'type' : RoomType.STANDARD,
 'entry_text' : '''You decided to investigate the mansion. Will you regret this choice? Only time will tell...''',
-'options' : 2,
+'options' : 8,
 },
 
     4 : {
@@ -937,7 +937,7 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 
     11_001 : {
 'type' : RoomType.STANDARD,
-'entry_text' : '''---------CHAPTER 1 - The Manor---------''',
+'entry_text' : '''---------CHAPTER 1 - The Beginning---------''',
 'options' : 11_002
 },
 
@@ -951,8 +951,19 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
     12 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''The house is odd.''',
-'''For some reason, it feels like some things are just... out of place.''',
+'''The house is extremely dark.''',
+'''The only light source in this place is the backdoor you just opened.''',
+'''You walk around the room you are in to try and find a lightswitch.''',
+'''You bump into a few objects and eventually find one.''',
+'''*click*''',
+'''Nothing.''',
+'''Either the power is out, or the lights just don't work.''',
+'''Either way, you need a solution.''',
+'''You pull out your phone.''',
+f'''{italic('26\% battery remaining')}''',
+'''You turn on your phone's flashlight.''',
+'''It has much less reach than what you would expect.''',
+'''Well, it's not like you have any other options...'''
 '''You decide to take a look at...''',
 ],
 'second_arrival_text' : '''What now?''',
@@ -989,6 +1000,8 @@ f'''No, you {italic('definitively')} forgot something important.'''
     14 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
+'''You decide to take a look at the kitchen.''',
+'''As soon as you enter it, you hear a loud noise come from the other side of the room,''',
 '''*Loud noise*''',
 '''You get a bit startled.'''
 ],
@@ -1076,18 +1089,19 @@ f'''{TF.format('Floor 1 key obtained!', TextColorTags.BRIGHT_YELLOW)}'''
     19_001: {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''You decide to go outside.''', 
-'''You think about leaving.'''
+'''You open the door and go outside.''',
+'''The good weather is refreshing and calming.''',
+'''You think about leaving.''',
+'''After all, there's nothing that forces you to stay here...'''
 ],
-'options' : {'Leave' : 19_002, "Don't leave" : 19_003},
+'options' : {'Leave' : 19_002, "Go back in" : 19_003},
 },
 
     19_002 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
 f'''This place is creeping you out too much.''',
-f'''You have to get out of here...''',
-f'''The fresh air managed to calm you down a bit, but not enough to go back in.''',
+f'''The fresh air managed to calm you down a bit, but not enough to willingly go back in.''', #this line feels weird
 f'''You walk away from the house.''',
 f'''...''',
 f'''You feel like you just forgot something important.''',
@@ -1137,14 +1151,11 @@ f'''Despite your fears, you decided to stay here and figure out what this place'
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You take a look at the second floor.''',
-'''... It's completely empty.''',
+'''...'''
+'''It's completely empty.''',
 '''No rooms, no walls, no furniture...''',
-'''Nothing apart from a single window.''',
-'''But you don't remember seeing any windows on the exterior of the house...''',
-'''You take a look at the floor.''',
-'''Despite the house's apparent age, the floor is completely clean, as if someone passed by here to clean.''',
-'''On the ground, there's a key in the middle of the room.''',
-'''You feel like it could be useful, but something tells you you should leave it there.''',
+'''Nothing apart from a single key on the middle of the floor.'''
+'''You feel like it could be useful, but something tells you you should leave it there.''', #add a note left by someone
 '''This place is really starting to unsettle you.''',
 '''You decide to...'''
 ],
@@ -1155,7 +1166,7 @@ f'''Despite your fears, you decided to stay here and figure out what this place'
     21_002 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''You think about the window and the key and start wondering if you've made a mistake by coming to this place.''',
+'''You think about the note and the key and start wondering if you've made a mistake by coming to this place.''',
 '''You hope that the awnser is no but, at this point, you really can't be sure.'''
 ],
 'options' : 20_002,
@@ -1186,8 +1197,6 @@ f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 'options' : {'The first bedroom' : 22, 'The second bedroom' : 23, 'The storage room' : 25, #bedroom 3 = 24
              'A closet' : 27, 'The hallway' : 28, 'Downstairs' : 20_002}, #bathroom 2 = 26
 },
-
-
 
     22 : { #unused
 'type' : RoomType.STANDARD,
@@ -1294,7 +1303,8 @@ f'''You {italic('really')} don't want to go in there.''',
 'entry_text' : [
 '''You open the door and take a peek.''',
 '''All you see is a staircase going down into complete darkness.''',
-'''The obscurity is not very reassuring, but there's a light switch on a wall in the basment across from the door.''',
+'''You try to use your flashlight to figure out how deep the stairs go,''',
+'''The obscurity is not very reassuring.''',
 '''You consider what to do.'''
 ],
 'second_arrival_text' : '''You consider going in the basement. It feels like a terrible idea, but your curiosity says otherwise.''',

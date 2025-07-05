@@ -1,9 +1,10 @@
 -------ASAP-------
 -Locations apart from the living room aren't done (rooms 13-17)
 -Remove placeholders (room 18-19)
+-Alertnate dialogue for room 29
 -------High-------
--Think about room 2 (item stand) and room 12_001 (leaving the house without being trapped in the basement)
--Add more text for the initial entry in room 12
+-Think about room 12_001/19_002 (early outs)
+-Add text for the initial entry in room 12
 -Add flavor text for high alert
 ------Medium------
 -Rename the manor to a house beacause i don't feel like describing that many places
