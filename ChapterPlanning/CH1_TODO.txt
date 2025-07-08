@@ -1,14 +1,14 @@
--------ASAP-------
+-------Now-------
 -Locations aren't done (rooms 13-17)
--------High-------
+-------Soon-------
 -Think about room 12-1/19-2 (early outs), 31
 -Add flavor text for high alert
-------Medium------
+------Later------
 -Rename the manor to a house beacause i don't feel like describing that many places
 -Add descriptitions for the basement door itself and the front door
 -Tune the alert mechanic (amounts)
 -Think about SFX
------Secondary----
+------Maybe------
 -Think about flavor text in the case where a room is viewed on normal alert then on high alert
 
 

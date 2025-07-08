@@ -1,11 +1,10 @@
--------ASAP-------
--Finish Chapter 1 (see CH1 planning)
--------High-------
--Map function
+-------Now-------
+-Finish Chapter 1
+-Start Chapter 2
 -Reminder function (ability to see logs kinda like in DDLC)
-------Medium------
+------Soon-------
 -Lore notes function
--Map editor in pygame
+------Later------
 -Better save management
--Chapter 2 idea : changing layout, exploration
------Secondary----
+------Maybe------
+-Map function/Map editor in pygame
