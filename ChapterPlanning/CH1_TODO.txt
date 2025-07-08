@@ -1,14 +1,18 @@
 -------ASAP-------
--Locations apart from the living room aren't done (rooms 13-17)
--Remove placeholders (room 18-19)
--Alertnate dialogue for room 29
+-Locations aren't done (rooms 13-17)
 -------High-------
--Think about room 12_001/19_002 (early outs)
--Add text for the initial entry in room 12
+-Think about room 12-1/19-2 (early outs), 31
 -Add flavor text for high alert
 ------Medium------
 -Rename the manor to a house beacause i don't feel like describing that many places
--Add descriptitions for the basement door itself
+-Add descriptitions for the basement door itself and the front door
 -Tune the alert mechanic (amounts)
+-Think about SFX
 -----Secondary----
 -Think about flavor text in the case where a room is viewed on normal alert then on high alert
+
+
+Notes:
+-I feel like we might need to justify all the locks
+-We also need to add a reason for the player to be on edge despite there being nothing
+-Or maybe we can just scrap the alert mechanic completely

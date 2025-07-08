@@ -58,8 +58,8 @@ AnyInvSlotData : TypeAlias = Union[SingletonSlotData, MultipleSlotData]
 KeyItemCode : TypeAlias = str
 
 class KeyItemCodes(Enum):
-    MANOR_BASEMENT_KEY = 'ManorBasementKey1'
-    MANOR_FLOOR1_KEY = 'ManorFloor1Key'
+    MANOR_BASEMENT_KEY = 'Ch1ManorBasementKey'
+    MANOR_FLOOR1_KEY = 'Ch1ManorFloor1Key'
 
     @property
     def value(self) -> KeyItemCode:
@@ -780,11 +780,31 @@ class Room:
             game.room_state[12]['Alert'] -= 0
             game.temp_data['did_unalert'] = True
     
-    def enter_room_29_001(self): #low alert
+    def enter_room_29(self):
+        high_alert : bool = game.room_state[12]['Alert'] >= 6
+        if game.has_visited[29] <= 1:
+            txt_to_display = self.data['entry_text'] if not high_alert else self.data['alternate_text'][0]
+        else: 
+            txt_to_display = self.data['second_arrival_text'] if not high_alert else self.data['alternate_text'][1]
+        if type(txt_to_display) == str:
+            print(txt_to_display)
+        else:
+            txt_to_display : list[str]
+            for part in txt_to_display:
+                if part == txt_to_display[-1]:
+                    print(part, end = '\n')
+                    if not isinstance(self.data['options'], int): 
+                        stall()
+                        print('')
+                    break
+                else:
+                    stall(part)
+    
+    def enter_room_29001(self): #low alert
         self.enter_default()
         if game.has_visited[29_002] <= 0: game.has_visited[29_002] = 1
     
-    def enter_room_29_002(self): #high alert
+    def enter_room_29002(self): #high alert
         self.enter_default()
         if game.has_visited[29_001] <= 0: game.has_visited[29_001] = 1
 
@@ -964,7 +984,7 @@ f'''{italic('26\% battery remaining')}''',
 '''You turn on your phone's flashlight.''',
 '''It has much less reach than what you would expect.''',
 '''Well, it's not like you have any other options...'''
-'''You decide to take a look at...''',
+'''Armed with a source of light, you decide to take a look at...''',
 ],
 'second_arrival_text' : '''What now?''',
 'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, 'The washing room' : 16, #cut the washing room?
@@ -1001,7 +1021,7 @@ f'''No, you {italic('definitively')} forgot something important.'''
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You decide to take a look at the kitchen.''',
-'''As soon as you enter it, you hear a loud noise come from the other side of the room,''',
+'''As soon as you enter it, you hear a loud noise come from the other side of the room.''',
 '''*Loud noise*''',
 '''You get a bit startled.'''
 ],
@@ -1155,7 +1175,7 @@ f'''Despite your fears, you decided to stay here and figure out what this place'
 '''It's completely empty.''',
 '''No rooms, no walls, no furniture...''',
 '''Nothing apart from a single key on the middle of the floor.'''
-'''You feel like it could be useful, but something tells you you should leave it there.''', #add a note left by someone
+'''You feel like it could be useful, but something tells you you should leave it there.''', #add a note left by someone that escaped
 '''This place is really starting to unsettle you.''',
 '''You decide to...'''
 ],
@@ -1166,7 +1186,7 @@ f'''Despite your fears, you decided to stay here and figure out what this place'
     21_002 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''You think about the note and the key and start wondering if you've made a mistake by coming to this place.''',
+f'''You think about {TF.format('the note and', TextFormatTags.STRIKETRHOUGH)} the key and start wondering if you've made a mistake by coming to this place.''',
 '''You hope that the awnser is no but, at this point, you really can't be sure.'''
 ],
 'options' : 20_002,
@@ -1252,10 +1272,19 @@ f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You walk up to the basement door and notice it's locked.''',
-'''Unfortunately, you don't have the key.''',
+'''Unfortunately, you don't have the right key to open it.''',
 '''It looks like if you want to get in there, you'll have to search around for the basement key.'''
 ],
 'second_arrival_text' : '''You need a key to open this door.''',
+'alternate_text' : [[
+'''You walk up to the basement door and notice it's locked.''',
+'''You don't have the right key to open it.''',
+'''It looks like if you want to get in there, you'll have to search around for the basement key.''', #High alert first entry
+'''But finding out what's in there isn't a particularly tempting offer.'''
+],[
+'''If, for some reason, you decide to go in, you'll need a key to open this door.''' #High alert second arrival
+],
+],
 'options' : 12,
 },
 
@@ -1329,14 +1358,18 @@ f'''You {italic('really')} don't want to go in there.''',
 'options' : 12,
 },
 
-    31 : {
+    31 : { #This might need a bit more panicking
 'type' : RoomType.STANDARD,
 'entry_text' :  [
 '''As you take your first steps, you already start regretting your decision.''',
-'''A chill runs down your spine (placeholder).'''
+'''A chill runs down your spine.''' #this line is weird
 '''But before you can even consider getting out...''',
 '''*BLAM!*''',
-'''The door closes in on you. Even worse, it's also locked on the inside...''',
+'''The door closes by itself.''',
+'''You try to open it back up.''',
+'''It's locked!''',
+'''You try to use the basement key to open the door back up, but then you notice that the lock 
+on the inside needs a completely different key than the lock on the outside.''',
 '''...''',
 '''Looks like you only have one way forwards. Unless...'''
 ],
@@ -1503,8 +1536,9 @@ def main():
         while True:
             save_name = crossplatform_input("What will this new save be called?\n")
             if not all([character in allow_list or character.isalnum() for character in save_name]): print("Invalid! (Invalid character was used)"); continue
-            if len(save_name) > 40: print("Invalid! (Save name is max. 40 lines)"); continue
-            if save_name == 'new save': print("Invalid! (Cannot use this save name)"); continue
+            if len(save_name) > 20: print("Invalid! (Save name is max 20 characters)"); continue
+            if save_name == 'new save': print("Invalid! (Cannot use this name)"); continue
+            if not save_name[0].isalpha() : print("Invalid (Dosen't start with a letter!)"); continue
             try:
                 with open(f'saves/{save_name}.json', 'x') as f:
                     json.dump({}, f)
