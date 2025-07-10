@@ -16,7 +16,7 @@ IS_VSCODE = any('gitkeep' in save for save in saves)
 
 def crossplatform_input(prompt : object = "") -> str:
     return_value = input(prompt)
-    if not IS_VSCODE: print('')
+    #if not IS_VSCODE: print('')
     return return_value
 
 AnyJson : TypeAlias = Union[str, int, float, bool, None, dict[str, 'AnyJson'], list['AnyJson']]
@@ -72,6 +72,17 @@ KeyItemNames : dict[KeyItemCode, str] = {
     KeyItemCodes.MANOR_FLOOR1_KEY.value : 'Floor 1 Key'
 }
 
+def log(text : str):
+    if not game.logs: game.logs.append(text); return
+    if game.logs[-1].endswith('\n'):
+        game.logs.append(text)
+    else:
+        game.logs[-1] += text 
+
+def printlog(text, end = '\n', do_log = True):
+    print(text, end=end)
+    if do_log : log(text + end)
+
 def clear_console(method : int = 1):
     if method == 1:
         print("\033c", end="")
@@ -82,18 +93,19 @@ def clear_console(method : int = 1):
     else:
         os.system('cls' if os.name == 'nt' else 'clear')
 
-def get_int_choice(option_count : int) -> int:
+def get_int_choice(option_count : int, allow_command : bool = True, do_log : bool = True) -> int:
     valid = [str(i + 1) for i in range(option_count)]
     while True:
         result = crossplatform_input('Selection : ')
         if result in valid:
+            if do_log: log(f'Selection : {int(result)}\n')
             return int(result)
-        elif result == "cmd":
+        elif result == "cmd" and allow_command:
             enter_command()
 
         elif len(result) == 0:
             print(f'Invalid. Number must range from 1 to {option_count}. To see run a command, type "cmd" or prefix it with "/".')
-        elif result[0] == '/':
+        elif result[0] == '/' and allow_command:
             parse_command(result)
         else:
             print(f'Invalid. Number must range from 1 to {option_count}. To see run a command, type "cmd" or prefix it with "/".')
@@ -105,20 +117,21 @@ def parse_command(message : str):
     if message[0] == '/':
         message = message[1:]
     command = message
+    if not any(command.startswith(cmd_name) for cmd_name in ['stop', 'exit', 'quit']): log(f'Attempted to use command "{command}"\n')
     result = is_valid_command(command)
     if result == False:
-        print(f'"{command}" is not a recognized command. To see a list of all commands, use help.')
+        printlog(f'"{command}" is not a recognized command. To see a list of all commands, use help.')
         return False
     elif result == True:
         process_command(command)
         return True
     elif type(result) == str:
-        print(result)
+        printlog(result)
         return False
     else:
-        print('Something went wrong. Please try again.')
+        printlog('Something went wrong. Please try again.')
 
-command_list = ['stop', 'exit', 'quit', 'exit', 'help', 'check', 'save']
+command_list = ['stop', 'exit', 'quit', 'exit', 'help', 'check', 'save', 'reminder', 'remind', 'logs']
 
 def is_valid_command(message : str):
     message = message.lower()
@@ -148,7 +161,8 @@ def is_valid_command(message : str):
             if command_to_help not in command_list:
                 return f'{command_to_help} is not a valid command. To see a list of all commands, use "help".'
             return True
-
+        case 'remind'|'reminder'|'logs':
+            return True
         case _:
             return False
 
@@ -174,38 +188,110 @@ def process_command(message : str):
         case 'save':
             sucsess = game.save(f'saves/{current_save_file}.json')
             if sucsess:
-                print('Data saved sucessfully!')
+                printlog('Data saved sucessfully!')
             else:
-                print('Data failed to save...')
+                printlog('Data failed to save...')
         case 'check':
             thing_to_check = args[0]
             match thing_to_check:
                 case 'inventory':
                     game.print_inventory()
+                    log('Inventory was checked sucessfully.\n')
                 case _:
-                    print(default_error)
+                    printlog(default_error)
         case 'help':
             if arg_count == 0:
                 print('quit, stop, exit - Close the game')
                 print('check - Check something')
                 print('save - Save the game in the current save file.')
                 print('For more detailed help about a command, use "help <command>"')
+                log('Received a summary of all available commands in the game.\n')
                 return
             command_to_help = args[0]
             match command_to_help:
                 case 'help':
-                    print('For more detailed help about a command, use "help <command>"')
+                    printlog('For more detailed help about a command, use "help <command>"')
                 case 'stop'|'quit'|'exit':
-                    print('Use to quit the game.')
+                    printlog('Use to quit the game.')
                 case 'save':
-                    print('Use to save the game in the current save file.')
+                    printlog('Use to save the game in the current save file.')
                 case 'check':
-                    print('Use check <something> to check something. You can try to check your inventory.')
-        case _:
-            print(default_error)
+                    printlog('Use check <something> to check something. You can try to check your inventory.')
+                case 'remind'|'reminder'|'logs':
+                    printlog('Use to check past events.')
+        
+        case 'remind'|'reminder'|'logs':
+            log_viewer()
+            log('Viewed logs.\n')
+            return
 
-def stall(stall_text = '(Enter to continue.) -->'):
+        case _:
+            printlog(default_error)
+
+def log_viewer(window : int = 18, scroll : int = 4):
+    log_lentgh : int = len(game.logs)
+    if log_lentgh == 0:
+        print('There are no logs to view!')
+        return
+    clear_console()
+    if log_lentgh <= window:
+        print(''.join(game.logs))
+        print(TF.format('1-Up', TextColorTags.BRIGHT_BLACK))
+        print(TF.format('2-Down', TextColorTags.BRIGHT_BLACK))
+        print('3-Back')
+        while True:
+            choice : int = get_int_choice(3, allow_command=False, do_log=False)
+            if choice in {1,2}: print('You cannot scroll that way!'); continue
+            if choice == 3: 
+                clear_console()
+                print(''.join(game.logs)) 
+                return
+    slice_top : int
+    slice_bottom : int = 1
+    max_bottom : int = log_lentgh - window + 1
+    while True:
+        slice_top = slice_bottom + window
+        section : list[str]
+        if slice_bottom <= 1:
+            section = game.logs[-slice_top:]
+        else:
+            section = game.logs[-slice_top:-(slice_bottom-1)]
+        can_scroll_up : bool = True if slice_bottom <= max_bottom else False
+        can_scroll_down : bool = True if slice_bottom > 1 else False
+        print('---')
+        print(''.join(section), end='' if section[-1].endswith('\n') else '\n')
+        print('---')
+        print(TF.format('1-Up', TextColorTags.BRIGHT_BLACK if not can_scroll_up else TextFormatTags.NOTHING))
+        print(TF.format('2-Down', TextColorTags.BRIGHT_BLACK if not can_scroll_down else TextFormatTags.NOTHING))
+        print('3-Back')
+        while True:
+            choice : int = get_int_choice(3, allow_command=False, do_log=False)
+            if choice == 1:
+                if can_scroll_up:
+                    slice_bottom = min(slice_bottom + scroll, max_bottom)
+                    clear_console()
+                    break
+                else:
+                    print('You cannot scroll that way!')
+                    continue
+            if choice == 2:
+                if can_scroll_down:
+                    slice_bottom = max(slice_bottom - scroll, 1)
+                    clear_console()
+                    break
+                else:
+                    print('You cannot scroll that way!')
+                    continue
+            if choice == 3: 
+                clear_console()
+                slice_top = min(window + 1, log_lentgh)
+                print(''.join(game.logs[-(window + 1):]))
+                return
+
+def stall(stall_text = '(Enter to continue.) -->', do_log = False):
     crossplatform_input(stall_text)
+    if do_log: log(stall_text + '\n')
+
 
 class TextFormatTags(Enum):
     NOTHING = 0
@@ -274,11 +360,6 @@ def italic(text : str):
 ConvertedToInteger : TypeAlias = int
 
 class GameState(TypedDict):
-    '''global_state : dict[str, AnyJson]
-    room_state : dict[int|str, dict[str, AnyJson]]
-    game_inventory : dict[str, int]
-    visited_rooms : dict[int|str, int]
-    current_room : int'''
     global_state : dict[str, AnyJson]
     room_state : dict[ConvertedToInteger, dict[str, AnyJson]]
     game_inventory : dict[str, int]
@@ -286,6 +367,7 @@ class GameState(TypedDict):
     current_room : int
     temp_data : dict[str, AnyJson]
     key_items : list[str]
+    logs : list[str]
 
 class SaveFile(TypedDict):
     '''current_state : GameState
@@ -339,6 +421,7 @@ class Game:
         self.room_number : int = 0
         self.temp_data : dict[str, AnyJson] = {}
         self.key_items : list[str] = []
+        self.logs : list[str] = []
 
     def reset(self):
         self.global_state = {}
@@ -350,6 +433,7 @@ class Game:
         self.room_number = 0
         self.temp_data = {}
         self.key_items = []
+        self.logs = []
 
     def save(self, file_path = 'saves/default_save.json'):
         try:
@@ -410,7 +494,8 @@ class Game:
             'game_inventory' : self.inventory,
             'visited_rooms' : has_visited,
             'current_room' : self.room_number,
-            'temp_data' : self.temp_data
+            'temp_data' : self.temp_data,
+            'logs' : self.logs
         }
         return current_state
 
@@ -432,6 +517,7 @@ class Game:
         self.global_state = state['global_state']
         self.temp_data = state['temp_data']
         self.key_items = state['key_items']
+        self.logs = state['logs']
 
     def make_checkpoint(self, checkpoint_name : str) -> bool:
         self.checkpoints[checkpoint_name] = self._get_game_state()
@@ -550,15 +636,15 @@ class Room:
             if options == 'END': stall()
             return options
         elif type(options) == int:
-            stall()
-            print('')
+            stall(do_log=(not first_room))
+            printlog('', do_log=(not first_room))
             return options
         option_dict : dict[int, str] = {}
         for i, option in enumerate(options):
-            print(f'{i+1}-{option}')
+            printlog(f'{i+1}-{option}', do_log=(not first_room))
             option_dict[i + 1] = option
         choice = get_int_choice(len(options))
-        print('')
+        printlog('', do_log=(not first_room))
         result = options[option_dict[choice]]
         return result
 
@@ -572,18 +658,18 @@ class Room:
             txt_to_display = second_arrival_text if second_arrival_text else self.data['entry_text']
 
         if type(txt_to_display) == str:
-            print(txt_to_display)
+            printlog(txt_to_display, do_log=(not first_room))
         else:
             txt_to_display : list[str]
             for part in txt_to_display:
                 if part == txt_to_display[-1]:
-                    print(part, end = '\n')
+                    printlog(part, end = '\n', do_log=(not first_room))
                     if not isinstance(self.data['options'], int): 
-                        stall()
-                        print('')
+                        stall(do_log=(not first_room))
+                        printlog('', do_log=(not first_room))
                     break
                 else:
-                    stall(part)
+                    stall(part, do_log=(not first_room))
 
     def _enter_checkpoint(self):
         if game.has_visited[self.room_number] > 1:
@@ -605,7 +691,7 @@ class Room:
         item_codes = [ItemCodes.BAT, ItemCodes.FLASHLIGHT]
         item_description_dict = {code : ITEM_DATA[code.value]['short_description'] for code in item_codes}
         option_dict : dict[int, ItemCode] = {}
-        print('')
+        print('', do_log=(not first_room))
         for i, item_code in enumerate(item_codes):
             print(f'{i + 1}-{item_description_dict[item_code]}')
             option_dict[i + 1] = item_code
@@ -653,18 +739,18 @@ class Room:
             txt_to_display = 'What now? Maybe leaving is a good idea...'
         
         if type(txt_to_display) == str:
-            print(txt_to_display)
+            printlog(txt_to_display, do_log=(not first_room))
         else:
             txt_to_display : list[str]
             for part in txt_to_display:
                 if part == txt_to_display[-1]:
-                    print(part, end = '\n')
+                    printlog(part, end = '\n', do_log=(not first_room))
                     if not isinstance(self.data['options'], int): 
-                        stall()
-                        print('')
+                        stall(do_log=(not first_room))
+                        printlog('', do_log=(not first_room))
                     break
                 else:
-                    stall(part)
+                    stall(part, do_log=(not first_room))
 
     def manage_room_12(self):
         room_12_state = game.room_state[12]
@@ -672,15 +758,15 @@ class Room:
         options = self.data['options']
         option_dict : dict[int, str] = {}
         for i, option in enumerate(options):
-            print(f'{i+1}-{option}')
+            printlog(f'{i+1}-{option}', do_log=(not first_room))
             option_dict[i + 1] = option
         if high_alert:
-            print(f'{i+2}-Leave')
+            printlog(f'{i+2}-Leave', do_log=(not first_room))
             option_dict[i+2] = 'Leave'
         choice = get_int_choice(len(options) + 1 if high_alert else len(options))
         str_result = option_dict[choice]
         result = options[str_result] if str_result != 'Leave' else 12_001
-        print('')
+        printlog('', do_log=(not first_room))
         if result == 20:
             result = 20_001 if KeyItemCodes.MANOR_FLOOR1_KEY.value in game.key_items else 20
         elif result == 29:
@@ -709,18 +795,18 @@ class Room:
         else: 
             txt_to_display = self.data['second_arrival_text'] if not high_alert else self.data['alternate_text'][1]
         if type(txt_to_display) == str:
-            print(txt_to_display)
+            printlog(txt_to_display, do_log=(not first_room))
         else:
             txt_to_display : list[str]
             for part in txt_to_display:
                 if part == txt_to_display[-1]:
-                    print(part, end = '\n')
+                    printlog(part, end = '\n', do_log=(not first_room))
                     if not isinstance(self.data['options'], int): 
-                        stall()
-                        print('')
+                        stall(do_log=(not first_room))
+                        printlog('', do_log=(not first_room))
                     break
                 else:
-                    stall(part)
+                    stall(part, do_log=(not first_room))
 
         if game.has_visited[14] <= 1 and not game.temp_data.get('did_alert', False):
             game.room_state[12]['Alert'] += 1
@@ -749,23 +835,19 @@ class Room:
         if game.has_visited[20] >= 1 or game.has_visited[20_001] >= 1:
             self.enter_default()
             return
-        print('''You decide to go up the stairs.''', end='')
-        stall('')
-        print('At the top, you notice that the door to the second floor is locked.', end='')
-        stall('')
-        print('You try to unlock the door with the key you already have.')
-        stall('')
-        print('*click*')
-        stall('')
-        print('It works perfectly.')
+        stall('''You decide to go up the stairs.''', do_log=(not first_room))
+        stall('At the top, you notice that the door to the second floor is locked.', do_log=(not first_room))
+        stall('You try to unlock the door with the key you already have.', do_log=(not first_room))
+        stall('*click*', do_log=(not first_room))
+        print('It works perfectly.', do_log=(not first_room))
 
     def manage_room_20001(self):
         if KeyItemCodes.MANOR_BASEMENT_KEY.value in game.key_items:
             room_to_return = 21_002
         else:
             room_to_return = 21_001
-        stall()
-        print('')
+        stall(do_log=(not first_room))
+        printlog('', do_log=(not first_room))
         return room_to_return
     
     def enter_room_21001(self):
@@ -787,18 +869,18 @@ class Room:
         else: 
             txt_to_display = self.data['second_arrival_text'] if not high_alert else self.data['alternate_text'][1]
         if type(txt_to_display) == str:
-            print(txt_to_display)
+            printlog(txt_to_display, do_log=(not first_room))
         else:
             txt_to_display : list[str]
             for part in txt_to_display:
                 if part == txt_to_display[-1]:
-                    print(part, end = '\n')
+                    printlog(part, end = '\n', do_log=(not first_room))
                     if not isinstance(self.data['options'], int): 
-                        stall()
-                        print('')
+                        stall(do_log=(not first_room))
+                        printlog('', do_log=(not first_room))
                     break
                 else:
-                    stall(part)
+                    stall(part, do_log=(not first_room))
     
     def enter_room_29001(self): #low alert
         self.enter_default()
@@ -810,13 +892,13 @@ class Room:
 
     def enter_room_32(self):
         if game.has_visited[32] > 1:
-            print(self.data['second_arrival_text'])
+            printlog(self.data['second_arrival_text'], do_log=(not first_room))
             return
 
         if game.find_inventory_item(ItemCodes.RADIO):
-            print('''You tried using the radio you got earlier to get help.\nNo one picked up...''')
+            printlog('''You tried using the radio you got earlier to get help.\nNo one picked up...''', do_log=(not first_room))
         else:
-            print(self.data['entry_text'])
+            printlog(self.data['entry_text'], do_log=(not first_room))
 
     def enter_room_33(self):
         if game.has_visited[33] > 1:
@@ -826,16 +908,16 @@ class Room:
         did_fight_door = False
         if game.find_inventory_item(ItemCodes.BAT):
             if did_fight_door:
-                print('''With a bat by your side, you can surely force this door open, right?
+                printlog('''With a bat by your side, you can surely force this door open, right?
 ...
-The score is 2-0 now.''')
+The score is 2-0 now.''', do_log=(not first_room))
             else:
-                print('You took a few swings at the door, but your attacks barely left a scratch.')
+                printlog('You took a few swings at the door, but your attacks barely left a scratch.', do_log=(not first_room))
         else:
             if did_fight_door:
-                print('''Your past experiences with doors tells you this isn't going to work.''')
+                printlog('''Your past experiences with doors tells you this isn't going to work.''', do_log=(not first_room))
             else:
-                print(self.data['entry_text'])
+                printlog(self.data['entry_text'], do_log=(not first_room))
 
 room_data : dict[int, RoomInfo] = {
     0 : {
@@ -980,7 +1062,7 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 '''Either the power is out, or the lights just don't work.''',
 '''Either way, you need a solution.''',
 '''You pull out your phone.''',
-f'''{italic('26\% battery remaining')}''',
+f'''{italic('26% battery remaining')}''',
 '''You turn on your phone's flashlight.''',
 '''It has much less reach than what you would expect.''',
 '''Well, it's not like you have any other options...'''
@@ -1481,6 +1563,7 @@ ending_data : dict[str, EndingInfo] = {
 
 game = Game()
 current_save_file : str|None = None
+first_room : bool = True
 if not os.path.isdir('saves'):
     try:
         os.makedirs('saves')
@@ -1489,7 +1572,7 @@ if not os.path.isdir('saves'):
         os.makedirs('saves')
 
 def main():
-    global current_save_file, game
+    global current_save_file, game, first_room
     decision = crossplatform_input('Enter "new save" to make a new save. Enter anything else to continue a save.\n').lower()
     if decision != "new save":
         saves : list[str] = []
@@ -1552,6 +1635,7 @@ def main():
     clear_console()
     while True:
         while True:
+            if game.room_number == 0: first_room = False
             room = Room(game.room_number)
             game.has_visited[game.room_number] += 1
             room.enter()
@@ -1562,6 +1646,7 @@ def main():
             elif type(room_result) == str:
                 break
             game.temp_data.clear()
+            first_room = False
 
         if type(room_result) != str:
             print('DEMO END - Your progress from this session will not be saved!')
