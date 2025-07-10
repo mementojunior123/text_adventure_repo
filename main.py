@@ -917,7 +917,7 @@ The score is 2-0 now.''', do_log=(not first_room))
             if did_fight_door:
                 printlog('''Your past experiences with doors tells you this isn't going to work.''', do_log=(not first_room))
             else:
-                printlog(self.data['entry_text'], do_log=(not first_room))
+                printlog('\n'.join(self.data['entry_text']), do_log=(not first_room))
 
 room_data : dict[int, RoomInfo] = {
     0 : {
@@ -1444,7 +1444,7 @@ f'''You {italic('really')} don't want to go in there.''',
 'type' : RoomType.STANDARD,
 'entry_text' :  [
 '''As you take your first steps, you already start regretting your decision.''',
-'''A chill runs down your spine.''' #this line is weird
+'''A chill runs down your spine.''', #this line is weird
 '''But before you can even consider getting out...''',
 '''*BLAM!*''',
 '''The door closes by itself.''',
