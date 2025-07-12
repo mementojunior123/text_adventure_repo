@@ -74,6 +74,7 @@ KeyItemNames : dict[KeyItemCode, str] = {
 
 def log(text : str):
     if not game.logs: game.logs.append(text); return
+    if len(game.logs) >= 200: game.logs.pop(0)
     if game.logs[-1].endswith('\n'):
         game.logs.append(text)
     else:
@@ -918,6 +919,10 @@ The score is 2-0 now.''', do_log=(not first_room))
                 printlog('''Your past experiences with doors tells you this isn't going to work.''', do_log=(not first_room))
             else:
                 printlog('\n'.join(self.data['entry_text']), do_log=(not first_room))
+    
+    def enter_room_35(self):
+        self.enter_default()
+        game.global_state['Ch2Time'] = 60
 
 room_data : dict[int, RoomInfo] = {
     0 : {
