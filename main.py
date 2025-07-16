@@ -852,7 +852,36 @@ class Room:
         return room_to_return
     
     def enter_room_21001(self):
-        self.enter_default()
+        ROOM_21001_DISAPPEARING_LINE_INDEX : int = 9
+        if game.has_visited[self.room_number] <= 1:
+            txt_to_display = self.data['entry_text']
+        else:
+            second_arrival_text = self.data.get('second_arrival_text', None)
+            txt_to_display = second_arrival_text if second_arrival_text else self.data['entry_text']
+
+        if type(txt_to_display) == str:
+            printlog(txt_to_display, do_log=(not first_room))
+        else:
+            txt_to_display : list[str]
+            for i, part in enumerate(txt_to_display):
+                if part == txt_to_display[-1]:
+                    printlog(part, end = '\n', do_log=(not first_room))
+                    if not isinstance(self.data['options'], int): 
+                        stall(do_log=(not first_room))
+                        printlog('', do_log=(not first_room))
+                    break
+                elif i == ROOM_21001_DISAPPEARING_LINE_INDEX:
+                    chunks : list[str] = list(italic(c) for c in ["do","n't ","go ","in ","the ","bas","em","ent"," it ","made ","me ","for","get"])
+                    i = len(chunks) - 1
+                    print(''.join(chunks), end = '\r')
+                    sleep(1.6)
+                    while i >= 0:
+                        print(' ' * 70, end='\r')
+                        print(''.join(chunks[:i]), end = '\r')
+                        i-=1
+                        sleep(0.12)
+                else:
+                    stall(part, do_log=(not first_room))
         if game.has_visited[21_001] <= 1 and not game.temp_data.get('did_alert', False):
             game.room_state[12]['Alert'] += 3
             game.temp_data['did_alert'] = True
@@ -862,6 +891,12 @@ class Room:
         if game.has_visited[21_003] <= 1 and not game.temp_data.get('did_unalert', False):
             game.room_state[12]['Alert'] -= 0
             game.temp_data['did_unalert'] = True
+        
+    def enter_room_21004(self):
+        self.enter_default()
+        if game.has_visited[21_004] <= 1 and not game.temp_data.get('did_alert', False):
+            game.room_state[12]['Alert'] += 1
+            game.temp_data['did_alert'] = True
     
     def enter_room_29(self):
         high_alert : bool = game.room_state[12]['Alert'] >= 6
@@ -1070,7 +1105,7 @@ f'''For some reason, the mansion dosen't have {italic('any')} windows.''',
 f'''{italic('26% battery remaining')}''',
 '''You turn on your phone's flashlight.''',
 '''It has much less reach than what you would expect.''',
-'''Well, it's not like you have any other options...'''
+'''Well, it's not like you have any other options...''',
 '''Armed with a source of light, you decide to take a look at...''',
 ],
 'second_arrival_text' : '''What now?''',
@@ -1230,7 +1265,7 @@ f'''Despite your fears, you decided to stay here and figure out what this place'
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You decide to go up the stairs.''',
-'''At the top, you notice that the door to the second floor is locked, for some reason.'''
+'''At the top, you notice that the door to the second floor is locked, for some reason.''',
 '''It looks like you'll need a key to unlock it.'''
 ],
 'second_arrival_text' : '''You try to go upstairs, but it's locked.''',
@@ -1258,12 +1293,21 @@ f'''Despite your fears, you decided to stay here and figure out what this place'
 'type' : RoomType.STANDARD,
 'entry_text' : [
 '''You take a look at the second floor.''',
-'''...'''
-'''It's completely empty.''',
+'''...''',
+'''It's completely empty.''', #2
 '''No rooms, no walls, no furniture...''',
-'''Nothing apart from a single key on the middle of the floor.'''
-'''You feel like it could be useful, but something tells you you should leave it there.''', #add a note left by someone that escaped
-'''This place is really starting to unsettle you.''',
+'''Nothing apart from a single key on the middle of the floor.''', #4
+'''You feel like it could be useful, but something tells you you should leave it there.''', 
+'''This place is really starting to unsettle you...''', #6
+'''Before you can make a decision, something catches your attention.''', #7
+'''There seems to be a message written on a sticky note taped to the wall.''', #8
+f'''{italic("don't go in the basement it made me forget")}''', #9
+'''!''',
+'''As you read the message, it starts vanishing in front of your very eyes.''',
+'''In the blink of an eye, it's completely gone.''',
+'''...''',
+'''You look back at the key in the middle of the room...''',
+'''The key is still there.''',
 '''You decide to...'''
 ],
 'second_arrival_text' : '''You ponder about taking the key you left on the floor.\nYou decide to...''',
@@ -1273,8 +1317,8 @@ f'''Despite your fears, you decided to stay here and figure out what this place'
     21_002 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-f'''You think about {TF.format('the note and', TextFormatTags.STRIKETRHOUGH)} the key and start wondering if you've made a mistake by coming to this place.''',
-'''You hope that the awnser is no but, at this point, you really can't be sure.'''
+f'''You think about the note and the key and start wondering if you've made a mistake by coming to this place.''',
+'''You hope that the awnser is no, but at this point you really can't be sure.'''
 ],
 'options' : 20_002,
 },
@@ -1292,7 +1336,10 @@ f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 
     21_004 : {
 'type' : RoomType.STANDARD,
-'entry_text' : 'You decided to leave the key on the ground. Something about it just creeps you out.',
+'entry_text' : [
+'''After what you just saw, there's no way you're picking up that key.'''
+],
+'second_arrival_text' : '''You leave the key on the floor. Picking up that key can't possibly be a good idea...''',
 'options' : 20_002
 },
 
@@ -1393,7 +1440,7 @@ f'''{TF.format('Basement key obtained!', TextColorTags.BRIGHT_YELLOW)}''',
 f'''You {italic('really')} don't want to go in there.''',
 '''If there's nothing in the basement, then it's just a waste of time.''',
 '''But if there really is something in there...''',
-'''...'''
+'''...''',
 '''Everything about this seems like a terrible idea, but your curiosity won't just let you walk away.'''
 ],
 'second_arrival_text' : '''You think about using the key.''',

@@ -3,6 +3,9 @@
 -------Soon-------
 -Think about room 12-1/19-2 (early outs), 31
 -Add flavor text for high alert
+-Think about room 21_001 logs
+-Think about room 21 in general
+-Get the narration POV sorted out
 ------Later------
 -Rename the manor to a house beacause i don't feel like describing that many places
 -Add descriptitions for the basement door itself and the front door
