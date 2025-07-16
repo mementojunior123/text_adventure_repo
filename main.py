@@ -880,6 +880,7 @@ class Room:
                         print(''.join(chunks[:i]), end = '\r')
                         i-=1
                         sleep(0.12)
+                    clear_console()
                 else:
                     stall(part, do_log=(not first_room))
         if game.has_visited[21_001] <= 1 and not game.temp_data.get('did_alert', False):
