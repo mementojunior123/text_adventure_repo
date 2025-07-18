@@ -657,7 +657,9 @@ class Room:
         else:
             second_arrival_text = self.data.get('second_arrival_text', None)
             txt_to_display = second_arrival_text if second_arrival_text else self.data['entry_text']
+        self.display_entry_text(txt_to_display)
 
+    def display_entry_text(self, txt_to_display : str|list[str]):
         if type(txt_to_display) == str:
             printlog(txt_to_display, do_log=(not first_room))
         else:
@@ -732,26 +734,14 @@ class Room:
             txt_to_display = self.data['second_arrival_text']
         elif game.room_state[12]['TimesAlerted'] == 1:
             txt_to_display = [
-            '''...'''
+            '''...''',
             '''This place is really getting under your skin...''',
             '''You start considering leaving.'''
             ]
         else:
             txt_to_display = 'What now? Maybe leaving is a good idea...'
         
-        if type(txt_to_display) == str:
-            printlog(txt_to_display, do_log=(not first_room))
-        else:
-            txt_to_display : list[str]
-            for part in txt_to_display:
-                if part == txt_to_display[-1]:
-                    printlog(part, end = '\n', do_log=(not first_room))
-                    if not isinstance(self.data['options'], int): 
-                        stall(do_log=(not first_room))
-                        printlog('', do_log=(not first_room))
-                    break
-                else:
-                    stall(part, do_log=(not first_room))
+        self.display_entry_text(txt_to_display)
 
     def manage_room_12(self):
         room_12_state = game.room_state[12]
@@ -784,10 +774,19 @@ class Room:
         return result
     
     def enter_room_13(self):
-        self.enter_default()
-        if game.has_visited[13] <= 1 and not game.temp_data.get('did_alert', False):
+        if 13 not in game.room_state: game.room_state[13] = {}
+        if 'did_alert' not in game.room_state[13]: game.room_state[13]['did_alert'] = False
+        txt_to_display : str|list[str]
+        if not game.has_visited[21_001]:
+            txt_to_display = self.data['entry_text'] if game.has_visited[13] <= 1 else self.data['second_arrival_text']
+        elif (not game.room_state[13]['did_alert']) or game.temp_data.get('did_alert', False):
             game.room_state[12]['Alert'] += 1
+            game.room_state[13]['did_alert'] = True
             game.temp_data['did_alert'] = True
+            txt_to_display = self.data['alternate_text'][0] if game.has_visited[13] <= 1 else self.data['alternate_text'][1]
+        else:
+            txt_to_display = self.data['alternate_text'][3] if game.room_state[12]['Alert'] >= 6 else self.data['alternate_text'][2]
+        self.display_entry_text(txt_to_display)
     
     def enter_room_14(self):
         high_alert : bool = game.room_state[12]['Alert'] >= 6
@@ -795,19 +794,7 @@ class Room:
             txt_to_display = self.data['entry_text'] if not high_alert else self.data['alternate_text'][0]
         else: 
             txt_to_display = self.data['second_arrival_text'] if not high_alert else self.data['alternate_text'][1]
-        if type(txt_to_display) == str:
-            printlog(txt_to_display, do_log=(not first_room))
-        else:
-            txt_to_display : list[str]
-            for part in txt_to_display:
-                if part == txt_to_display[-1]:
-                    printlog(part, end = '\n', do_log=(not first_room))
-                    if not isinstance(self.data['options'], int): 
-                        stall(do_log=(not first_room))
-                        printlog('', do_log=(not first_room))
-                    break
-                else:
-                    stall(part, do_log=(not first_room))
+        self.display_entry_text(txt_to_display)
 
         if game.has_visited[14] <= 1 and not game.temp_data.get('did_alert', False):
             game.room_state[12]['Alert'] += 1
@@ -840,7 +827,7 @@ class Room:
         stall('At the top, you notice that the door to the second floor is locked.', do_log=(not first_room))
         stall('You try to unlock the door with the key you already have.', do_log=(not first_room))
         stall('*click*', do_log=(not first_room))
-        print('It works perfectly.', do_log=(not first_room))
+        print('The door unlocks.', do_log=(not first_room))
 
     def manage_room_20001(self):
         if KeyItemCodes.MANOR_BASEMENT_KEY.value in game.key_items:
@@ -871,20 +858,22 @@ class Room:
                         printlog('', do_log=(not first_room))
                     break
                 elif i == ROOM_21001_DISAPPEARING_LINE_INDEX:
-                    chunks : list[str] = list(italic(c) for c in ["do","n't ","go ","in ","the ","bas","em","ent"," it ","made ","me ","for","get"])
+                    #log(part)
+                    chunks : list[str] = list(italic(c) for c in [
+                    "do","n't ","go ","in ","the ","bas","em","ent"," it ","will ","make ", "you ", "for","get"
+                    ])
                     i = len(chunks) - 1
                     print(''.join(chunks), end = '\r')
-                    sleep(1.6)
+                    sleep(0.45)
                     while i >= 0:
                         print(' ' * 70, end='\r')
                         print(''.join(chunks[:i]), end = '\r')
                         i-=1
-                        sleep(0.12)
-                    clear_console()
+                        sleep(0.08)
                 else:
                     stall(part, do_log=(not first_room))
         if game.has_visited[21_001] <= 1 and not game.temp_data.get('did_alert', False):
-            game.room_state[12]['Alert'] += 3
+            game.room_state[12]['Alert'] += 5
             game.temp_data['did_alert'] = True
     
     def enter_room_21003(self):
@@ -978,7 +967,7 @@ room_data : dict[int, RoomInfo] = {
 '''You see a decrepit house near you.''',
 '''While you've never exactly been an explorer, it manages to spike your interest.''',
 '''Although it's a bit creepy, you can't help but wonder what's in there.''',
-'''It's not like anyone lives there anymore...'''
+'''It's not like anyone lives there anymore... Nobody's been there in years.'''
 ],
 'options' : {'Continue your walk' : 4, 'Investigate the mansion' : 3},
 },
@@ -1110,7 +1099,7 @@ f'''{italic('26% battery remaining')}''',
 '''Armed with a source of light, you decide to take a look at...''',
 ],
 'second_arrival_text' : '''What now?''',
-'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, 'The washing room' : 16, #cut the washing room?
+'options' : {'The living room' : 13, 'The kitchen' : 14, 'The bathroom' : 15, #cut the washing room(16)
              'The entry' : 17, 'The front door' : 18, 'Upstairs' : 20, 'The basement door' : 29},
 },
 
@@ -1134,9 +1123,43 @@ f'''No, you {italic('definitively')} forgot something important.'''
     13 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''The author wrote something he thought was going to be scary, but then he realised it didn't make any sense so it was scrapped.'''
+'''You walk into the living room.''',
+'''While the room is big, there isn't much in there.''',
+'''All you can observe is 2 sofas, a TV that looks like it's been ripped straight from the 80's and a creaky wood floor.''',
+'''On one of the sofas, you spot a book.''',
+'''You pick it up and inspect it.''',
+f'''It's titled "{italic('The curse of forgetfulness')}".''',
+'''You flip through the book to figure out what it's about, but all the pages are blank.''',
+'''You wonder if it's meant to be some sort of joke.'''
 ],
-'second_arrival_text' : '''What could it have possibly been?''',
+'second_arrival_text' : '''There's nothing of note here.''',
+
+'alternate_text' : [[ #First entry after going upstairs (did not see living room)
+'''You walk into the living room.''',
+'''While the room is big, there isn't much in there.''',
+'''All you can observe is 2 sofas, a TV that looks like it's been ripped straight from the 80's and a creaky wood floor.''',
+'''On one of the sofas, you spot a book.''',
+'''You pick it up and inspect it.''',
+f'''It's titled "{italic('The Curse of Forgetfulness')}".''',
+'''You flip through the book to figure out what it's about, but all the pages are blank.''',
+'''...''',
+'''You wonder if it's meant to be some sort of warning.'''
+
+],[ #First entry after going upstairs (already saw living room)
+f'''"{italic('The Curse of Forgetfulness')}"...''',
+'''You can't help but wonder if this book was somehow related to what happened upstairs.'''
+
+],[#Second entry after going upstairs + not alert
+'''You start wondering if you overreacted to that book.''',
+'''Maybe it's just a coincidence?''',
+
+],[#Second entry after going upstairs + alert
+'''You start wondering if you overreacted to that book.''',
+'''Maybe it's just a coincidence?''',
+'''...''',
+'''That dosen't feel very convincing...''' 
+],
+],
 'options' : 12,
 },
 
@@ -1165,9 +1188,19 @@ f'''No, you {italic('definitively')} forgot something important.'''
     15 : {
 'type' : RoomType.STANDARD,
 'entry_text' : [
-'''Nothing in the bathroom.'''
+'''You walk over to the bathroom and try to open the door.''',
+'''*click*''',
+'''It's locked.''',
 ],
-'second_arrival_text' : '''Nothing here.''',
+'second_arrival_text' : '''The door is still locked.''',
+'alternate_text' : [[
+'''You walk over to the bathroom and try to open the door.''',
+'''*click*''',
+'''For some reason, the door is locked.''',
+],[
+'''[Second arrival text but there's some extra flavor text]'''
+],
+],
 'options' : 12,
 },
 
@@ -1302,7 +1335,7 @@ f'''Despite your fears, you decided to stay here and figure out what this place'
 '''This place is really starting to unsettle you...''', #6
 '''Before you can make a decision, something catches your attention.''', #7
 '''There seems to be a message written on a sticky note taped to the wall.''', #8
-f'''{italic("don't go in the basement it made me forget")}''', #9
+f'''{italic("don't go in the basement it will make you forget")}''', #9
 '''!''',
 '''As you read the message, it starts vanishing in front of your very eyes.''',
 '''In the blink of an eye, it's completely gone.''',
@@ -1734,6 +1767,8 @@ def main():
                 stall()
                 response : str = crossplatform_input('Input "quit" to exit the game. Input anything else to go back to a checkpoint and retry.\n').lower()
                 if response != 'quit':
+                    print('Restarting...')
+                    sleep(0.2)
                     restore_result : bool = game.restore_checkpoint(ending_info['retry_checkpoint'])
                     if restore_result == False: print('Checkpoint could not be loaded- Terminating session!')
                     else:

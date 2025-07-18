@@ -1,5 +1,9 @@
 -------Now-------
--Locations aren't done (rooms 13-17)
+-Locations aren't done (rooms 14-17)
+Room 14(kitchen): loud noise + no food
+Room 15(bathroom): locked
+Room 16(washing room): cut from the game
+Room 17(The entry): light absorbing darkness(closet) + key
 -------Soon-------
 -Think about room 12-1/19-2 (early outs), 31
 -Add flavor text for high alert
